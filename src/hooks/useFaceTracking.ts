@@ -51,8 +51,9 @@ export const useFaceTracking = (
 
         if (isMounted) {
           faceLandmarkerRef.current = faceLandmarker;
+          console.log('✅ MediaPipe initialized successfully');
+          console.log('🔄 Setting isLoading to false');
           setIsLoading(false);
-          console.log('MediaPipe initialized successfully');
         }
       } catch (err) {
         console.error('MediaPipe initialization error:', err);

@@ -65,6 +65,17 @@ function App() {
     }
   }, [stream, isTrackingLoading, landmarks, currentScreen]);
 
+  // Failsafe: Force menu after 5 seconds regardless
+  useEffect(() => {
+    const failsafeTimer = setTimeout(() => {
+      if (currentScreen === 'loading') {
+        console.log('⚠️ FAILSAFE: Forcing menu screen after 5 seconds');
+        setCurrentScreen('menu');
+      }
+    }, 5000);
+    return () => clearTimeout(failsafeTimer);
+  }, [currentScreen]);
+
   return (
     <div className="cursor-hidden">
       {/* Camera background */}
