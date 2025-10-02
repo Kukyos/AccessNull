@@ -73,29 +73,35 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({ onStreamReady }) => {
         ref={videoRef}
         style={{
           position: 'fixed',
-          inset: 0,
-          width: '100%',
-          height: '100%',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
           objectFit: 'cover',
-          zIndex: 0,
+          zIndex: -1,
           transform: 'scaleX(-1)',
+          display: 'block',
+          visibility: 'visible',
         }}
         autoPlay
         playsInline
         muted
-        onLoadedMetadata={() => console.log('Video metadata loaded')}
-        onLoadedData={() => console.log('Video data loaded')}
-        onPlay={() => console.log('Video playing')}
-        onPause={() => console.log('Video paused')}
-        onError={(e) => console.error('Video error:', e)}
+        onLoadedMetadata={() => console.log('📹 Video metadata loaded')}
+        onLoadedData={() => console.log('📹 Video data loaded')}
+        onPlay={() => console.log('▶️ Video playing')}
+        onPause={() => console.log('⏸️ Video paused')}
+        onError={(e) => console.error('❌ Video error:', e)}
       />
       
       {/* Subtle overlay to improve UI visibility */}
       <div style={{
         position: 'fixed',
-        inset: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.1)',
-        zIndex: 0,
+        top: 0,
+        left: 0,
+        width: '100vw',
+        height: '100vh',
+        backgroundColor: 'rgba(0, 0, 0, 0.2)',
+        zIndex: 1,
         pointerEvents: 'none',
       }} />
     </>

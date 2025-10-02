@@ -32,14 +32,18 @@ export const useCamera = (): UseCameraReturn => {
       });
 
       if (videoRef.current) {
+        console.log('📹 Setting video srcObject');
         videoRef.current.srcObject = mediaStream;
-        videoRef.current.play();
+        await videoRef.current.play();
+        console.log('▶️ Video playing');
+      } else {
+        console.warn('⚠️ videoRef.current is null!');
       }
 
       streamRef.current = mediaStream;
       setStream(mediaStream);
       setIsLoading(false);
-      console.log('Camera started successfully');
+      console.log('✅ Camera started successfully');
     } catch (err) {
       console.error('Camera Error:', err);
       
