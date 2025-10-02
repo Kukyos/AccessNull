@@ -47,9 +47,20 @@ function App() {
 
   // Update screen state when tracking is ready
   useEffect(() => {
-    if (stream && !isTrackingLoading && landmarks && currentScreen === 'loading') {
-      // Move to menu after everything loads
-      const timer = setTimeout(() => setCurrentScreen('menu'), 1000);
+    console.log('🔍 Loading check:', { 
+      hasStream: !!stream, 
+      isTrackingLoading, 
+      hasLandmarks: !!landmarks, 
+      currentScreen 
+    });
+    
+    // Move to menu when camera is ready, even if no landmarks yet
+    if (stream && !isTrackingLoading && currentScreen === 'loading') {
+      console.log('✅ Ready to show menu!');
+      const timer = setTimeout(() => {
+        console.log('🎯 Switching to menu screen');
+        setCurrentScreen('menu');
+      }, 1000);
       return () => clearTimeout(timer);
     }
   }, [stream, isTrackingLoading, landmarks, currentScreen]);
