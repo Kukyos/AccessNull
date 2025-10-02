@@ -31,13 +31,23 @@ export const useCamera = (): UseCameraReturn => {
         audio: false,
       });
 
+      // Wait for videoRef to be ready with retry mechanism
+      let retries = 0;
+      const maxRetries = 20; // 2 seconds max
+      while (!videoRef.current && retries < maxRetries) {
+        console.log(`⏳ Waiting for video element... (attempt ${retries + 1}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, 100));
+        retries++;
+      }
+
       if (videoRef.current) {
         console.log('📹 Setting video srcObject');
         videoRef.current.srcObject = mediaStream;
         await videoRef.current.play();
         console.log('▶️ Video playing');
       } else {
-        console.warn('⚠️ videoRef.current is null!');
+        console.error('❌ videoRef.current is still null after waiting!');
+        throw new Error('Video element not available after waiting 2 seconds');
       }
 
       streamRef.current = mediaStream;
