@@ -346,6 +346,8 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ onClose }) => {
             minHeight: '50px',
             maxHeight: '120px',
             fontFamily: 'inherit',
+            color: '#2C3E50', // Dark text color so it's visible
+            backgroundColor: 'white', // White background
           }}
           rows={2}
         />

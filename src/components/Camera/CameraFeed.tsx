@@ -34,7 +34,7 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({ onStreamReady }) => {
           width: '100vw',
           height: '100vh',
           objectFit: 'cover',
-          zIndex: -1,
+          zIndex: 0,
           transform: 'scaleX(-1)',
           display: 'block',
           visibility: 'visible',
@@ -56,7 +56,7 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({ onStreamReady }) => {
         left: 0,
         width: '100vw',
         height: '100vh',
-        backgroundColor: 'rgba(0, 0, 0, 0.2)',
+        backgroundColor: 'rgba(0, 0, 0, 0.3)',
         zIndex: 1,
         pointerEvents: 'none',
       }} />

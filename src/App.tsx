@@ -1,15 +1,22 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { CameraFeed } from './components/Camera/CameraFeed';
 import { ForeheadCursor } from './components/Cursor/ForeheadCursor';
+import { WorkingAccessibilityDashboard } from './components/WorkingAccessibilityDashboard';
+import { IntelligentVoiceBox } from './components/IntelligentVoiceBox';
 import { useFaceTracking } from './hooks/useFaceTracking';
 import { ChatScreen } from './screens/ChatScreen';
 import type { CalibrationSettings, AppScreen } from './types';
 
 function App() {
   const [stream, setStream] = useState<MediaStream | null>(null);
-  const [currentScreen, setCurrentScreen] = useState<AppScreen>('loading');
-  const [showDebug, setShowDebug] = useState(false);
+  const [currentScreen, setCurrentScreen] = useState<AppScreen>('instructions');
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  
+  // Add console log to track app initialization
+  console.log('🚀 App component initialized, current screen:', currentScreen);
+
+  // Simplified state for testing
+  const [faceTrackingEnabled, setFaceTrackingEnabled] = useState(true); // Enabled by default
 
   // Default calibration settings - matching ForeHeadDetector
   const [calibration, setCalibration] = useState<CalibrationSettings>({
@@ -17,7 +24,7 @@ function App() {
     smoothing: 0.1,   // Lower = more responsive (using 5-frame buffer in cursor)
     dwellTime: 1500,
     blinkEnabled: false,
-    clickMethod: 'blink', // Default to blink, can switch to mouth
+    clickMethod: 'mouth', // Default to mouth open for clicking
   });
 
   // Face tracking
@@ -68,19 +75,24 @@ function App() {
     }
   }, [stream, isTrackingLoading, landmarks, currentScreen]);
 
-  // Failsafe: Force menu after 5 seconds regardless
+  // Failsafe: Force menu after 2 seconds regardless (faster for testing)
   useEffect(() => {
     const failsafeTimer = setTimeout(() => {
       if (currentScreen === 'loading') {
-        console.log('⚠️ FAILSAFE: Forcing menu screen after 5 seconds');
+        console.log('⚠️ FAILSAFE: Forcing menu screen after 2 seconds');
         setCurrentScreen('menu');
       }
-    }, 5000);
+    }, 2000); // Reduced from 5 seconds to 2 seconds
     return () => clearTimeout(failsafeTimer);
   }, [currentScreen]);
 
+  // Simple initialization for testing
+  useEffect(() => {
+    console.log('🚀 App initialized successfully');
+  }, []);
+
   return (
-    <div className="cursor-hidden">
+    <div>
       {/* Camera background */}
       <CameraFeed onStreamReady={handleStreamReady} />
 
@@ -93,7 +105,7 @@ function App() {
           alignItems: 'center',
           justifyContent: 'center',
           zIndex: 10,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          backgroundColor: 'rgba(0, 0, 0, 0.3)',
         }}>
           <div style={{ textAlign: 'center', color: 'white' }}>
             <div className="spinner" style={{ width: '64px', height: '64px', margin: '0 auto 1rem' }}></div>
@@ -118,6 +130,256 @@ function App() {
                 {trackingError.message}
               </div>
             )}
+            <button
+              onClick={() => setCurrentScreen('menu')}
+              style={{
+                marginTop: '2rem',
+                background: 'rgba(76, 175, 80, 0.8)',
+                border: '1px solid rgba(76, 175, 80, 1)',
+                borderRadius: '0.5rem',
+                padding: '0.75rem 1.5rem',
+                color: 'white',
+                fontSize: '1rem',
+                cursor: 'pointer'
+              }}
+            >
+              Skip to Menu (Test Mode)
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Instructions/Disclaimer Screen */}
+      {currentScreen === 'instructions' && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10,
+          backgroundColor: 'rgba(0, 0, 0, 0.85)',
+          padding: '2rem',
+        }}>
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(26, 26, 26, 0.95) 0%, rgba(45, 45, 45, 0.95) 100%)',
+            backdropFilter: 'blur(20px)',
+            border: '2px solid rgba(59, 130, 246, 0.4)',
+            borderRadius: '2rem',
+            padding: '3rem',
+            maxWidth: '900px',
+            maxHeight: '90vh',
+            overflow: 'auto',
+            color: 'white',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.6)'
+          }}>
+            {/* Header */}
+            <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+              <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🏥</div>
+              <h1 style={{ 
+                fontSize: '2.5rem', 
+                fontWeight: 'bold', 
+                margin: '0 0 0.5rem 0',
+                background: 'linear-gradient(135deg, #3b82f6, #ef4444)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent'
+              }}>
+                AccessPoint Instructions
+              </h1>
+              <p style={{ fontSize: '1.125rem', opacity: 0.8, margin: 0 }}>
+                Hands-Free Medical Interface - How It Works
+              </p>
+            </div>
+
+            {/* Instructions Content */}
+            <div style={{ display: 'grid', gap: '2rem' }}>
+              
+              {/* Voice Control Section */}
+              <div style={{
+                background: 'rgba(239, 68, 68, 0.1)',
+                border: '2px solid rgba(239, 68, 68, 0.3)',
+                borderRadius: '1rem',
+                padding: '2rem'
+              }}>
+                <h2 style={{ 
+                  fontSize: '1.5rem', 
+                  margin: '0 0 1rem 0',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
+                }}>
+                  🎤 Voice Control (Nullistant)
+                </h2>
+                <ul style={{ margin: 0, paddingLeft: '1.5rem', lineHeight: 1.6 }}>
+                  <li><strong>Location:</strong> Red panel in top-right corner</li>
+                  <li><strong>How to use:</strong> Click the header to expand, then click "Listen"</li>
+                  <li><strong>What to say:</strong> Speak naturally - "Help", "Emergency", "Go back", "Call doctor"</li>
+                  <li><strong>Smart AI:</strong> Understands context and finds the right buttons automatically</li>
+                  <li><strong>Navigation:</strong> Say "exit", "back", "close" to return to previous screens</li>
+                </ul>
+              </div>
+
+              {/* Face Tracking Section */}
+              <div style={{
+                background: 'rgba(59, 130, 246, 0.1)',
+                border: '2px solid rgba(59, 130, 246, 0.3)',
+                borderRadius: '1rem',
+                padding: '2rem'
+              }}>
+                <h2 style={{ 
+                  fontSize: '1.5rem', 
+                  margin: '0 0 1rem 0',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
+                }}>
+                  👁️ Face Tracking
+                </h2>
+                <ul style={{ margin: 0, paddingLeft: '1.5rem', lineHeight: 1.6 }}>
+                  <li><strong>Enable:</strong> Click "Face Track: OFF" button at bottom of main menu</li>
+                  <li><strong>Control:</strong> Move your head to control a cursor on screen</li>
+                  <li><strong>Click:</strong> Blink both eyes or open mouth wide (configurable in Settings)</li>
+                  <li><strong>Cursor:</strong> Small circle that highlights clickable elements</li>
+                  <li><strong>Dwell time:</strong> Adjust in Settings - how long to hover before clicking</li>
+                </ul>
+              </div>
+
+              {/* Chat Assistant Section */}
+              <div style={{
+                background: 'rgba(34, 197, 94, 0.1)',
+                border: '2px solid rgba(34, 197, 94, 0.3)',
+                borderRadius: '1rem',
+                padding: '2rem'
+              }}>
+                <h2 style={{ 
+                  fontSize: '1.5rem', 
+                  margin: '0 0 1rem 0',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
+                }}>
+                  💬 NullChat (AI Assistant)
+                </h2>
+                <ul style={{ margin: 0, paddingLeft: '1.5rem', lineHeight: 1.6 }}>
+                  <li><strong>Access:</strong> Click "AI Assistant" from main menu</li>
+                  <li><strong>Type or speak:</strong> Ask questions about medical records, campus info</li>
+                  <li><strong>Languages:</strong> Supports English and Hindi</li>
+                  <li><strong>Voice input:</strong> Click microphone button to speak your question</li>
+                  <li><strong>Responses:</strong> Get spoken answers automatically</li>
+                </ul>
+              </div>
+
+              {/* Navigation & Features */}
+              <div style={{
+                background: 'rgba(168, 85, 247, 0.1)',
+                border: '2px solid rgba(168, 85, 247, 0.3)',
+                borderRadius: '1rem',
+                padding: '2rem'
+              }}>
+                <h2 style={{ 
+                  fontSize: '1.5rem', 
+                  margin: '0 0 1rem 0',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
+                }}>
+                  🏥 Main Features
+                </h2>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div>
+                    <strong>📋 Medical Records:</strong><br />
+                    View prescriptions and medical history
+                  </div>
+                  <div>
+                    <strong>🚨 Emergency:</strong><br />
+                    Quick access to emergency contacts and 911
+                  </div>
+                  <div>
+                    <strong>♿ Accessibility:</strong><br />
+                    Campus navigation and accessibility info
+                  </div>
+                  <div>
+                    <strong>⚙️ Settings:</strong><br />
+                    Customize face tracking and accessibility features
+                  </div>
+                </div>
+              </div>
+
+              {/* Important Notes */}
+              <div style={{
+                background: 'rgba(245, 158, 11, 0.1)',
+                border: '2px solid rgba(245, 158, 11, 0.4)',
+                borderRadius: '1rem',
+                padding: '2rem'
+              }}>
+                <h2 style={{ 
+                  fontSize: '1.5rem', 
+                  margin: '0 0 1rem 0',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
+                }}>
+                  ⚠️ Important Notes
+                </h2>
+                <ul style={{ margin: 0, paddingLeft: '1.5rem', lineHeight: 1.6 }}>
+                  <li><strong>Camera Permission:</strong> Required for face tracking to work</li>
+                  <li><strong>Microphone Permission:</strong> Required for voice control and chat</li>
+                  <li><strong>Browser Support:</strong> Works best in Chrome, Edge, or Firefox</li>
+                  <li><strong>Lighting:</strong> Good lighting improves face tracking accuracy</li>
+                  <li><strong>Emergency Use:</strong> Voice control works even without face tracking</li>
+                </ul>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div style={{ 
+              display: 'flex', 
+              gap: '1rem', 
+              marginTop: '2rem',
+              justifyContent: 'center',
+              flexWrap: 'wrap'
+            }}>
+              <button
+                data-hoverable
+                onClick={() => setCurrentScreen('loading')}
+                style={{
+                  background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                  border: 'none',
+                  borderRadius: '1rem',
+                  padding: '1rem 2rem',
+                  color: 'white',
+                  fontSize: '1.125rem',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  minWidth: '200px'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+                onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+              >
+                🚀 Start AccessPoint
+              </button>
+              <button
+                data-hoverable
+                onClick={() => setCurrentScreen('menu')}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  border: '2px solid rgba(255, 255, 255, 0.4)',
+                  borderRadius: '1rem',
+                  padding: '1rem 2rem',
+                  color: 'white',
+                  fontSize: '1.125rem',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  minWidth: '200px'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+                onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+              >
+                ⏭️ Skip to Main Menu
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -343,6 +605,51 @@ function App() {
             >
               <span style={{ fontSize: '1.5rem' }}>⚙️</span>
               Settings
+            </button>
+            <button
+              data-hoverable
+              onClick={() => setCurrentScreen('accessibility-settings')}
+              style={{
+                background: 'rgba(255, 255, 255, 0.2)',
+                backdropFilter: 'blur(10px)',
+                border: '1px solid rgba(255, 255, 255, 0.3)',
+                borderRadius: '0.75rem',
+                padding: '1rem 2rem',
+                color: 'white',
+                fontSize: '1rem',
+                fontWeight: '500',
+                cursor: 'pointer',
+                transition: 'all 0.3s',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+              }}
+            >
+              <span style={{ fontSize: '1.5rem' }}>♿</span>
+              Accessibility
+            </button>
+
+            <button
+              data-hoverable
+              onClick={() => setFaceTrackingEnabled(!faceTrackingEnabled)}
+              style={{
+                background: faceTrackingEnabled ? 'rgba(76, 175, 80, 0.3)' : 'rgba(255, 255, 255, 0.2)',
+                backdropFilter: 'blur(10px)',
+                border: faceTrackingEnabled ? '1px solid rgba(76, 175, 80, 0.5)' : '1px solid rgba(255, 255, 255, 0.3)',
+                borderRadius: '0.75rem',
+                padding: '1rem 2rem',
+                color: 'white',
+                fontSize: '1rem',
+                fontWeight: '500',
+                cursor: 'pointer',
+                transition: 'all 0.3s',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+              }}
+            >
+              <span style={{ fontSize: '1.5rem' }}>👁️</span>
+              Face Track: {faceTrackingEnabled ? 'ON' : 'OFF'}
             </button>
             <button
               data-hoverable
@@ -696,9 +1003,10 @@ function App() {
                 />
               </div>
               {/* Dwell Time Setting */}
-              <div>
+              <div style={{ opacity: faceTrackingEnabled ? 1 : 0.5 }}>
                 <label style={{ color: 'white', display: 'block', marginBottom: '0.5rem', fontSize: '1.125rem' }}>
                   Click Dwell Time: {calibration.dwellTime}ms
+                  {!faceTrackingEnabled && <span style={{ fontSize: '0.875rem', opacity: 0.7 }}> (Enable Face Tracking first)</span>}
                 </label>
                 <input
                   type="range"
@@ -706,8 +1014,13 @@ function App() {
                   max="3000"
                   step="100"
                   value={calibration.dwellTime}
-                  onChange={(e) => setCalibration(prev => ({ ...prev, dwellTime: parseInt(e.target.value) }))}
-                  style={{ width: '100%', cursor: 'pointer' }}
+                  onChange={(e) => faceTrackingEnabled && setCalibration(prev => ({ ...prev, dwellTime: parseInt(e.target.value) }))}
+                  disabled={!faceTrackingEnabled}
+                  style={{ 
+                    width: '100%', 
+                    cursor: faceTrackingEnabled ? 'pointer' : 'not-allowed',
+                    opacity: faceTrackingEnabled ? 1 : 0.5
+                  }}
                 />
               </div>
               
@@ -781,8 +1094,36 @@ function App() {
         </div>
       )}
 
-      {/* Forehead cursor - only show when tracking is active */}
-      {landmarks && currentScreen !== 'loading' && (
+      {/* Accessibility Settings Screen */}
+      {currentScreen === 'accessibility-settings' && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0, 0, 0, 0.9)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10,
+          overflow: 'auto',
+        }}>
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.05)',
+            backdropFilter: 'blur(20px)',
+            border: '2px solid rgba(255, 255, 255, 0.2)',
+            borderRadius: '1.5rem',
+            padding: '2rem',
+            maxWidth: '95vw',
+            maxHeight: '95vh',
+            width: '1200px',
+            overflow: 'auto',
+          }}>
+            <WorkingAccessibilityDashboard onClose={() => setCurrentScreen('menu')} />
+          </div>
+        </div>
+      )}
+
+      {/* Forehead cursor - only show when face tracking is enabled */}
+      {faceTrackingEnabled && landmarks && currentScreen !== 'loading' && (
         <ForeheadCursor
           landmarks={landmarks}
           blinkData={blinkData}
@@ -791,64 +1132,10 @@ function App() {
         />
       )}
 
-      {/* Debug info toggle button */}
-      {landmarks && (
-        <button
-          onClick={() => setShowDebug(!showDebug)}
-          style={{
-            position: 'fixed',
-            bottom: '1rem',
-            right: '1rem',
-            background: 'rgba(0, 0, 0, 0.6)',
-            color: 'white',
-            border: 'none',
-            borderRadius: '50%',
-            width: '40px',
-            height: '40px',
-            fontSize: '1.2rem',
-            cursor: 'pointer',
-            zIndex: 50,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-          title={showDebug ? 'Hide debug info' : 'Show debug info'}
-        >
-          {showDebug ? '✕' : 'ℹ️'}
-        </button>
-      )}
 
-      {/* Debug info panel (collapsible) */}
-      {landmarks && showDebug && (
-        <div style={{
-          position: 'fixed',
-          bottom: '4rem',
-          right: '1rem',
-          background: 'rgba(0, 0, 0, 0.85)',
-          color: 'white',
-          padding: '0.75rem',
-          borderRadius: '0.5rem',
-          fontSize: '0.75rem',
-          zIndex: 50,
-          fontFamily: 'monospace',
-          maxWidth: '200px',
-        }}>
-          <div style={{ marginBottom: '0.25rem' }}>✓ {currentScreen}</div>
-          {blinkData && (
-            <>
-              <div style={{ marginTop: '0.25rem' }}>
-                👁️ {blinkData.isBlinking ? '🟢' : '⚪'} L:{(blinkData.leftEyeClosed * 100).toFixed(0)}% R:{(blinkData.rightEyeClosed * 100).toFixed(0)}%
-              </div>
-              <div style={{ marginTop: '0.25rem' }}>
-                👄 {blinkData.isMouthOpen ? '🟢' : '⚪'} {(blinkData.mouthOpen * 100).toFixed(0)}%
-              </div>
-              <div style={{ marginTop: '0.5rem', fontSize: '0.7rem', opacity: 0.7, borderTop: '1px solid rgba(255,255,255,0.2)', paddingTop: '0.25rem' }}>
-                {calibration.clickMethod === 'blink' ? '👁️ Blink' : '👄 Mouth'}
-              </div>
-            </>
-          )}
-        </div>
-      )}
+
+      {/* Intelligent Voice Box - Always available */}
+      <IntelligentVoiceBox />
     </div>
   );
 }

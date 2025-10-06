@@ -1,16 +1,150 @@
 @import "tailwindcss";
 
+/* ===== UNIVERSAL ACCESSIBILITY DESIGN SYSTEM ===== */
+
+/* CSS Custom Properties for Dynamic Theming */
+:root {
+  /* Primary Medical Theme */
+  --color-primary: #E74C3C;
+  --color-primary-dark: #C0392B;
+  --color-primary-light: #FF6B6B;
+  
+  /* Accessibility Colors */
+  --color-success: #27AE60;
+  --color-warning: #F39C12;
+  --color-danger: #E74C3C;
+  --color-info: #3498DB;
+  
+  /* Neutral Colors */
+  --color-white: #FFFFFF;
+  --color-black: #000000;
+  --color-gray-50: #F8F9FA;
+  --color-gray-100: #E9ECEF;
+  --color-gray-200: #DEE2E6;
+  --color-gray-300: #CED4DA;
+  --color-gray-400: #ADB5BD;
+  --color-gray-500: #6C757D;
+  --color-gray-600: #495057;
+  --color-gray-700: #343A40;
+  --color-gray-800: #212529;
+  --color-gray-900: #000000;
+  
+  /* High Contrast Mode Override */
+  --color-contrast-bg: var(--color-white);
+  --color-contrast-text: var(--color-black);
+  --color-contrast-border: var(--color-black);
+  
+  /* Font Sizes - Scalable */
+  --font-xs: 0.75rem;
+  --font-sm: 0.875rem;
+  --font-base: 1rem;
+  --font-lg: 1.125rem;
+  --font-xl: 1.25rem;
+  --font-2xl: 1.5rem;
+  --font-3xl: 1.875rem;
+  --font-4xl: 2.25rem;
+  --font-5xl: 3rem;
+  --font-6xl: 3.75rem;
+  
+  /* Spacing Scale */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --space-2xl: 3rem;
+  --space-3xl: 4rem;
+  
+  /* Border Radius */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
+  
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  
+  /* Animation Durations */
+  --duration-fast: 150ms;
+  --duration-normal: 300ms;
+  --duration-slow: 500ms;
+}
+
+/* High Contrast Mode */
+@media (prefers-contrast: high) {
+  :root {
+    --color-primary: #000000;
+    --color-primary-dark: #000000;
+    --color-primary-light: #333333;
+    --color-success: #000000;
+    --color-warning: #000000;
+    --color-danger: #000000;
+    --color-info: #000000;
+    --color-contrast-bg: #FFFFFF;
+    --color-contrast-text: #000000;
+    --color-contrast-border: #000000;
+  }
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-contrast-bg: var(--color-gray-900);
+    --color-contrast-text: var(--color-white);
+    --color-contrast-border: var(--color-white);
+  }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 0ms;
+    --duration-normal: 0ms;
+    --duration-slow: 0ms;
+  }
+  
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Base Styles */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
+*:focus {
+  outline: 3px solid var(--color-info);
+  outline-offset: 2px;
+}
+
+html {
+  font-size: 16px; /* Base font size for rem calculations */
+}
+
+/* Font size scaling for accessibility */
+@media (prefers-reduced-data: no-preference) {
+  html { font-size: 18px; }
+}
+
 body {
   margin: 0;
   padding: 0;
   overflow: hidden;
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--color-gray-50);
+  color: var(--color-gray-800);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 #root {
@@ -19,51 +153,308 @@ body {
   overflow: hidden;
 }
 
+/* Accessibility Utility Classes */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .cursor-hidden {
   cursor: none !important;
 }
 
-.accessible-btn {
-  padding: 2rem 3rem;
-  font-size: 1.25rem;
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 6px;
+  background: var(--color-primary);
+  color: var(--color-white);
+  padding: 8px;
+  text-decoration: none;
+  z-index: 9999;
+  border-radius: var(--radius-md);
+}
+
+.skip-link:focus {
+  top: 6px;
+}
+
+/* Universal Button System */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  padding: var(--space-lg) var(--space-xl);
+  font-size: var(--font-lg);
   font-weight: 600;
-  border-radius: 0.75rem;
-  transition: all 0.3s;
-  border: 4px solid transparent;
+  border-radius: var(--radius-xl);
+  border: 3px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  transition: all var(--duration-normal) ease;
+  text-decoration: none;
+  font-family: inherit;
+  min-height: 64px; /* Minimum touch target size */
+  min-width: 64px;
+  position: relative;
+  overflow: hidden;
 }
 
-.medical-btn {
-  background: white;
-  color: #E74C3C;
-  border-color: #E74C3C;
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
-.medical-btn:hover {
-  background: #E74C3C;
-  color: white;
+.btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
 }
 
+.btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+/* Button Variants */
+.btn-primary {
+  background: var(--color-primary);
+  color: var(--color-white);
+  border-color: var(--color-primary);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--color-primary-dark);
+  border-color: var(--color-primary-dark);
+}
+
+.btn-secondary {
+  background: var(--color-white);
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--color-primary);
+  color: var(--color-white);
+}
+
+.btn-success {
+  background: var(--color-success);
+  color: var(--color-white);
+  border-color: var(--color-success);
+}
+
+.btn-danger {
+  background: var(--color-danger);
+  color: var(--color-white);
+  border-color: var(--color-danger);
+}
+
+/* Button Sizes */
+.btn-sm {
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--font-sm);
+  min-height: 48px;
+}
+
+.btn-lg {
+  padding: var(--space-xl) var(--space-2xl);
+  font-size: var(--font-xl);
+  min-height: 80px;
+}
+
+.btn-xl {
+  padding: var(--space-2xl) var(--space-3xl);
+  font-size: var(--font-2xl);
+  min-height: 96px;
+}
+
+/* Card System */
+.card {
+  background: var(--color-white);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
+  border: 2px solid var(--color-gray-200);
+  overflow: hidden;
+  transition: all var(--duration-normal) ease;
+}
+
+.card:hover {
+  box-shadow: var(--shadow-xl);
+  transform: translateY(-4px);
+}
+
+.card-header {
+  padding: var(--space-xl);
+  border-bottom: 2px solid var(--color-gray-200);
+  background: var(--color-gray-50);
+}
+
+.card-body {
+  padding: var(--space-xl);
+}
+
+.card-footer {
+  padding: var(--space-xl);
+  border-top: 2px solid var(--color-gray-200);
+  background: var(--color-gray-50);
+}
+
+/* Glass Morphism Effects */
+.glass {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.glass-dark {
+  background: rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(20px);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Loading States */
 .spinner {
-  border: 4px solid #E9ECEF;
-  border-radius: 9999px;
-  border-top-color: #E74C3C;
+  width: var(--space-2xl);
+  height: var(--space-2xl);
+  border: 4px solid var(--color-gray-200);
+  border-radius: 50%;
+  border-top-color: var(--color-primary);
   animation: spin 1s linear infinite;
 }
 
+.skeleton {
+  background: linear-gradient(90deg, var(--color-gray-200) 25%, var(--color-gray-100) 50%, var(--color-gray-200) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s infinite;
+  border-radius: var(--radius-md);
+}
+
+/* Animations */
 @keyframes spin {
-    to { transform: rotate(360deg); }
-  }
+  to { transform: rotate(360deg); }
+}
 
-  @keyframes pulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.7; transform: scale(1.02); }
-  }
+@keyframes skeleton-loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
 
-  .error-message {
-  background: #E74C3C;
-  color: white;
-  padding: 1.5rem;
-  border-radius: 0.5rem;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-  font-weight: 500;
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(1.02); }
+}
+
+@keyframes bounce {
+  0%, 20%, 53%, 80%, 100% { transform: translateY(0); }
+  40%, 43% { transform: translateY(-15px); }
+  70% { transform: translateY(-7px); }
+  90% { transform: translateY(-3px); }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+  20%, 40%, 60%, 80% { transform: translateX(5px); }
+}
+
+/* Alert System */
+.alert {
+  padding: var(--space-lg);
+  border-radius: var(--radius-lg);
+  border: 2px solid;
+  margin: var(--space-md) 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.alert-success {
+  background: rgba(39, 174, 96, 0.1);
+  border-color: var(--color-success);
+  color: #1e5d32;
+}
+
+.alert-warning {
+  background: rgba(243, 156, 18, 0.1);
+  border-color: var(--color-warning);
+  color: #8b5a00;
+}
+
+.alert-danger {
+  background: rgba(231, 76, 60, 0.1);
+  border-color: var(--color-danger);
+  color: #a71e1e;
+}
+
+.alert-info {
+  background: rgba(52, 152, 219, 0.1);
+  border-color: var(--color-info);
+  color: #1e4d6b;
+}
+
+/* Error Message Styling */
+.error-message {
+  background: var(--color-danger);
+  color: var(--color-white);
+  padding: var(--space-xl);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  font-weight: 600;
+  border: 3px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Responsive Typography */
+.text-xs { font-size: var(--font-xs); }
+.text-sm { font-size: var(--font-sm); }
+.text-base { font-size: var(--font-base); }
+.text-lg { font-size: var(--font-lg); }
+.text-xl { font-size: var(--font-xl); }
+.text-2xl { font-size: var(--font-2xl); }
+.text-3xl { font-size: var(--font-3xl); }
+.text-4xl { font-size: var(--font-4xl); }
+.text-5xl { font-size: var(--font-5xl); }
+.text-6xl { font-size: var(--font-6xl); }
+
+/* Utility Classes */
+.visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+.focus-visible {
+  outline: 3px solid var(--color-info);
+  outline-offset: 2px;
+}
+
+/* High Contrast Mode Specific Styles */
+@media (prefers-contrast: high) {
+  .btn {
+    border-width: 4px;
+  }
+  
+  .card {
+    border-width: 3px;
+    border-color: var(--color-black);
+  }
+  
+  .glass, .glass-dark {
+    background: var(--color-white);
+    border-color: var(--color-black);
+    backdrop-filter: none;
+  }
 }
