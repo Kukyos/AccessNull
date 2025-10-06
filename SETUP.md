@@ -116,6 +116,55 @@ accesspoint/
 3. Have backup plan for camera issues (mouse control mode)
 4. Pre-load the app before demo to avoid MediaPipe download delay
 
+## API Configuration
+
+### Required API Keys
+
+AccessPoint uses external APIs for chat and voice features. You'll need to obtain free API keys:
+
+#### 1. Groq API (for Chat AI)
+1. Visit https://console.groq.com/
+2. Sign up for free account
+3. Navigate to API Keys section
+4. Create new API key
+5. Copy the key
+
+#### 2. Sarvam AI API (for Voice Input/Output)
+1. Visit https://www.sarvam.ai/
+2. Sign up for developer access
+3. Navigate to API dashboard
+4. Generate API key
+5. Copy the key
+
+### Environment Setup
+
+1. Copy `.env.example` to `.env`:
+   ```bash
+   cp .env.example .env
+   ```
+
+2. Edit `.env` and add your API keys:
+   ```env
+   VITE_GROQ_API_KEY=gsk_xxxxxxxxxxxxx
+   VITE_SARVAM_API_KEY=xxxxxxxxxxxxx
+   ```
+
+3. Restart the dev server:
+   ```bash
+   npm run dev
+   ```
+
+### Deployment with Vercel
+
+1. Push code to GitHub
+2. Import project in Vercel dashboard
+3. Add environment variables in Vercel project settings:
+   - `VITE_GROQ_API_KEY`
+   - `VITE_SARVAM_API_KEY`
+4. Deploy!
+
+**Note**: Environment variables with `VITE_` prefix are exposed to the client. For production apps, consider using a backend proxy to keep API keys secure. For hackathon demos, this approach is acceptable.
+
 ## License
 
 MIT (or your chosen license)

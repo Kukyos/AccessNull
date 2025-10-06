@@ -2,19 +2,22 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { CameraFeed } from './components/Camera/CameraFeed';
 import { ForeheadCursor } from './components/Cursor/ForeheadCursor';
 import { useFaceTracking } from './hooks/useFaceTracking';
+import { ChatScreen } from './screens/ChatScreen';
 import type { CalibrationSettings, AppScreen } from './types';
 
 function App() {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [currentScreen, setCurrentScreen] = useState<AppScreen>('loading');
+  const [showDebug, setShowDebug] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
-  // Default calibration settings - optimized for rotation-based control
+  // Default calibration settings - matching ForeHeadDetector
   const [calibration, setCalibration] = useState<CalibrationSettings>({
-    sensitivity: 2.0, // Higher for rotation - small head turns = big cursor movements
-    smoothing: 0.35,  // Moderate smoothing for stable rotation tracking
+    sensitivity: 1.8, // Match ForeHeadDetector's HEAD_CONTROL_SENSITIVITY
+    smoothing: 0.1,   // Lower = more responsive (using 5-frame buffer in cursor)
     dwellTime: 1500,
     blinkEnabled: false,
+    clickMethod: 'blink', // Default to blink, can switch to mouth
   });
 
   // Face tracking
@@ -389,6 +392,9 @@ function App() {
         </>
       )}
 
+      {/* Chat Screen */}
+      {currentScreen === 'chat' && <ChatScreen onClose={() => setCurrentScreen('menu')} />}
+
       {/* Emergency Screen */}
       {currentScreen === 'emergency' && (
         <div style={{
@@ -635,55 +641,6 @@ function App() {
         </div>
       )}
 
-      {/* Chat Assistant Screen */}
-      {currentScreen === 'chat' && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0, 0, 0, 0.85)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 10,
-        }}>
-          <div style={{
-            background: 'rgba(255, 255, 255, 0.15)',
-            backdropFilter: 'blur(20px)',
-            border: '2px solid rgba(255, 255, 255, 0.3)',
-            borderRadius: '1.5rem',
-            padding: '3rem',
-            maxWidth: '600px',
-            width: '90%',
-            textAlign: 'center',
-          }}>
-            <div style={{ fontSize: '5rem', marginBottom: '1rem' }}>🤖</div>
-            <h2 style={{ color: 'white', fontSize: '2.5rem', margin: '0 0 1rem 0' }}>
-              AI Chat Assistant
-            </h2>
-            <p style={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: '1.25rem', margin: '0 0 2rem 0' }}>
-              Multilingual medical support coming soon...
-            </p>
-            <button
-              data-hoverable
-              onClick={() => setCurrentScreen('menu')}
-              style={{
-                background: 'rgba(255, 255, 255, 0.2)',
-                backdropFilter: 'blur(10px)',
-                border: '1px solid rgba(255, 255, 255, 0.3)',
-                borderRadius: '0.75rem',
-                padding: '1rem 2rem',
-                color: 'white',
-                fontSize: '1rem',
-                cursor: 'pointer',
-                width: '100%',
-              }}
-            >
-              ← Back to Menu
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Settings Screen */}
       {currentScreen === 'settings' && (
         <div style={{
@@ -753,6 +710,54 @@ function App() {
                   style={{ width: '100%', cursor: 'pointer' }}
                 />
               </div>
+              
+              {/* Click Method Setting */}
+              <div>
+                <label style={{ color: 'white', display: 'block', marginBottom: '0.75rem', fontSize: '1.125rem' }}>
+                  Click Method
+                </label>
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                  <button
+                    data-hoverable
+                    onClick={() => setCalibration(prev => ({ ...prev, clickMethod: 'blink' }))}
+                    style={{
+                      flex: 1,
+                      padding: '1rem',
+                      borderRadius: '0.75rem',
+                      border: calibration.clickMethod === 'blink' ? '3px solid #27AE60' : '2px solid rgba(255, 255, 255, 0.3)',
+                      background: calibration.clickMethod === 'blink' ? 'rgba(39, 174, 96, 0.3)' : 'rgba(255, 255, 255, 0.1)',
+                      color: 'white',
+                      fontSize: '1rem',
+                      cursor: 'pointer',
+                      fontWeight: calibration.clickMethod === 'blink' ? 'bold' : 'normal',
+                    }}
+                  >
+                    👁️ Blink
+                  </button>
+                  <button
+                    data-hoverable
+                    onClick={() => setCalibration(prev => ({ ...prev, clickMethod: 'mouth' }))}
+                    style={{
+                      flex: 1,
+                      padding: '1rem',
+                      borderRadius: '0.75rem',
+                      border: calibration.clickMethod === 'mouth' ? '3px solid #27AE60' : '2px solid rgba(255, 255, 255, 0.3)',
+                      background: calibration.clickMethod === 'mouth' ? 'rgba(39, 174, 96, 0.3)' : 'rgba(255, 255, 255, 0.1)',
+                      color: 'white',
+                      fontSize: '1rem',
+                      cursor: 'pointer',
+                      fontWeight: calibration.clickMethod === 'mouth' ? 'bold' : 'normal',
+                    }}
+                  >
+                    👄 Mouth Open
+                  </button>
+                </div>
+                <p style={{ fontSize: '0.875rem', opacity: 0.8, margin: '0.5rem 0 0 0', color: 'white' }}>
+                  {calibration.clickMethod === 'blink' 
+                    ? 'Blink both eyes to click buttons' 
+                    : 'Open your mouth wide to click buttons'}
+                </p>
+              </div>
             </div>
             <button
               data-hoverable
@@ -786,36 +791,62 @@ function App() {
         />
       )}
 
-      {/* Debug info (remove in production) */}
+      {/* Debug info toggle button */}
       {landmarks && (
+        <button
+          onClick={() => setShowDebug(!showDebug)}
+          style={{
+            position: 'fixed',
+            bottom: '1rem',
+            right: '1rem',
+            background: 'rgba(0, 0, 0, 0.6)',
+            color: 'white',
+            border: 'none',
+            borderRadius: '50%',
+            width: '40px',
+            height: '40px',
+            fontSize: '1.2rem',
+            cursor: 'pointer',
+            zIndex: 50,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+          title={showDebug ? 'Hide debug info' : 'Show debug info'}
+        >
+          {showDebug ? '✕' : 'ℹ️'}
+        </button>
+      )}
+
+      {/* Debug info panel (collapsible) */}
+      {landmarks && showDebug && (
         <div style={{
           position: 'fixed',
-          bottom: '1rem',
+          bottom: '4rem',
           right: '1rem',
-          background: 'rgba(0, 0, 0, 0.7)',
+          background: 'rgba(0, 0, 0, 0.85)',
           color: 'white',
-          padding: '1rem',
+          padding: '0.75rem',
           borderRadius: '0.5rem',
-          fontSize: '0.875rem',
+          fontSize: '0.75rem',
           zIndex: 50,
           fontFamily: 'monospace',
+          maxWidth: '200px',
         }}>
-          <div>Tracking: ✓ (Multi-Point)</div>
-          <div>Screen: {currentScreen}</div>
-          <div>Face Center: ({(landmarks.nose.x * 100).toFixed(1)}%, {(landmarks.nose.y * 100).toFixed(1)}%)</div>
+          <div style={{ marginBottom: '0.25rem' }}>✓ {currentScreen}</div>
           {blinkData && (
             <>
-              <div style={{ marginTop: '0.5rem', borderTop: '1px solid rgba(255,255,255,0.3)', paddingTop: '0.5rem' }}>
-                👁️ Blink Detection: {blinkData.isBlinking ? '🟢 CLOSED' : '⚪ OPEN'}
+              <div style={{ marginTop: '0.25rem' }}>
+                👁️ {blinkData.isBlinking ? '🟢' : '⚪'} L:{(blinkData.leftEyeClosed * 100).toFixed(0)}% R:{(blinkData.rightEyeClosed * 100).toFixed(0)}%
               </div>
-              <div style={{ fontSize: '0.75rem' }}>
-                L: {(blinkData.leftEyeClosed * 100).toFixed(0)}% | R: {(blinkData.rightEyeClosed * 100).toFixed(0)}%
+              <div style={{ marginTop: '0.25rem' }}>
+                👄 {blinkData.isMouthOpen ? '🟢' : '⚪'} {(blinkData.mouthOpen * 100).toFixed(0)}%
+              </div>
+              <div style={{ marginTop: '0.5rem', fontSize: '0.7rem', opacity: 0.7, borderTop: '1px solid rgba(255,255,255,0.2)', paddingTop: '0.25rem' }}>
+                {calibration.clickMethod === 'blink' ? '👁️ Blink' : '👄 Mouth'}
               </div>
             </>
           )}
-          <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', opacity: 0.7 }}>
-            👁️ Blink to click buttons!
-          </div>
         </div>
       )}
     </div>

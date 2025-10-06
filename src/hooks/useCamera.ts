@@ -43,8 +43,44 @@ export const useCamera = (): UseCameraReturn => {
       if (videoRef.current) {
         console.log('📹 Setting video srcObject');
         videoRef.current.srcObject = mediaStream;
-        await videoRef.current.play();
-        console.log('▶️ Video playing');
+        
+        // Wait for video to be ready before playing
+        await new Promise<void>((resolve, reject) => {
+          const video = videoRef.current!;
+          const timeout = setTimeout(() => reject(new Error('Video load timeout')), 5000);
+          
+          const onCanPlay = () => {
+            clearTimeout(timeout);
+            video.removeEventListener('canplay', onCanPlay);
+            video.removeEventListener('error', onError);
+            resolve();
+          };
+          
+          const onError = () => {
+            clearTimeout(timeout);
+            video.removeEventListener('canplay', onCanPlay);
+            video.removeEventListener('error', onError);
+            reject(new Error('Video load error'));
+          };
+          
+          video.addEventListener('canplay', onCanPlay);
+          video.addEventListener('error', onError);
+          
+          // If already can play, resolve immediately
+          if (video.readyState >= 3) {
+            clearTimeout(timeout);
+            resolve();
+          }
+        });
+        
+        // Now play the video (won't be interrupted)
+        try {
+          await videoRef.current.play();
+          console.log('▶️ Video playing');
+        } catch (playError) {
+          console.warn('Play error (ignoring):', playError);
+          // Ignore play errors as video might auto-play
+        }
       } else {
         console.error('❌ videoRef.current is still null after waiting!');
         throw new Error('Video element not available after waiting 2 seconds');

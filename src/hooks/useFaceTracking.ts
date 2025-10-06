@@ -115,37 +115,15 @@ export const useFaceTracking = (
 
     const face = result.faceLandmarks[0];
 
-    // MediaPipe Face Mesh landmark indices (478 total landmarks):
-    // Nose tip: 1 (most reliable center point)
-    // Between eyebrows (glabella): 168
-    // Left eye center: 468
-    // Right eye center: 473
-    // Using HEAD ROTATION (YAW) for cursor control
-    // This is much more natural - just turn your head left/right, no position movement needed!
-    
-    const noseTip = face[1];          // Nose tip
-    const leftEar = face[234];        // Left side of face (near ear)
-    const rightEar = face[454];       // Right side of face (near ear)
-    
-    // Calculate head rotation (yaw) based on horizontal face landmarks
-    // When you turn head left, right landmarks move toward center
-    // When you turn head right, left landmarks move toward center
-    const faceWidth = Math.abs(rightEar.x - leftEar.x);
-    
-    // Calculate horizontal rotation ratio
-    // 0.5 = facing center, < 0.5 = turned right, > 0.5 = turned left
-    const leftVisibility = (noseTip.x - leftEar.x) / faceWidth;
-    const rightVisibility = (rightEar.x - noseTip.x) / faceWidth;
-    const rotationRatio = leftVisibility / (leftVisibility + rightVisibility);
-    
-    // Calculate vertical position (nodding up/down) from nose height
-    const verticalPosition = noseTip.y;
+    // Use EXACTLY the same method as ForeHeadDetector
+    // They simply use nose_tip directly: nose_tip.y is already normalized 0-1
+    const noseTip = face[1]; // Nose tip - this is the tracking point
     
     return {
-      forehead: { x: noseTip.x, y: noseTip.y },
+      forehead: { x: face[10].x, y: face[10].y },
       leftEye: { x: face[468].x, y: face[468].y },
       rightEye: { x: face[473].x, y: face[473].y },
-      nose: { x: rotationRatio, y: verticalPosition }, // X = rotation (0-1), Y = vertical pos
+      nose: { x: noseTip.x, y: noseTip.y }, // Direct nose tip, no averaging
     };
   }, []);
 
@@ -188,7 +166,7 @@ export const useFaceTracking = (
           setError(null);
         }
 
-        // Extract blink data from blendshapes
+        // Extract blink and mouth data from blendshapes
         if (result.faceBlendshapes && result.faceBlendshapes.length > 0) {
           const blendshapes = result.faceBlendshapes[0];
           
@@ -199,19 +177,29 @@ export const useFaceTracking = (
           const leftClosed = leftEyeBlink?.score || 0;
           const rightClosed = rightEyeBlink?.score || 0;
           
-          // VERY LOW threshold for detecting a blink (0.2 = 20% closed)
-          const BLINK_THRESHOLD = 0.2;
+          // Higher threshold to prevent false positives (0.5 = 50% closed)
+          const BLINK_THRESHOLD = 0.5;
           const isBlinking = leftClosed > BLINK_THRESHOLD && rightClosed > BLINK_THRESHOLD;
+          
+          // Find mouth open blendshape (jawOpen is the most reliable)
+          const jawOpen = blendshapes.categories.find(c => c.categoryName === 'jawOpen');
+          const mouthOpenValue = jawOpen?.score || 0;
+          
+          // Threshold for mouth open detection (0.4 = 40% open)
+          const MOUTH_THRESHOLD = 0.4;
+          const isMouthOpen = mouthOpenValue > MOUTH_THRESHOLD;
           
           // Log raw values every 120 frames for debugging (less spam)
           if (frameCount % 120 === 0) {
-            console.log(`👁️ Blink values - Left: ${(leftClosed * 100).toFixed(1)}%, Right: ${(rightClosed * 100).toFixed(1)}%, Threshold: ${(BLINK_THRESHOLD * 100)}%`);
+            console.log(`👁️ Blink: L=${(leftClosed * 100).toFixed(1)}%, R=${(rightClosed * 100).toFixed(1)}% | 👄 Mouth: ${(mouthOpenValue * 100).toFixed(1)}%`);
           }
           
           setBlinkData({
             leftEyeClosed: leftClosed,
             rightEyeClosed: rightClosed,
             isBlinking,
+            mouthOpen: mouthOpenValue,
+            isMouthOpen,
           });
         } else {
           console.warn('⚠️ No blendshapes data available');

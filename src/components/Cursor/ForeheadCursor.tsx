@@ -19,12 +19,14 @@ export const ForeheadCursor: React.FC<ForeheadCursorProps> = ({
   const [hoveredElement, setHoveredElement] = useState<HTMLElement | null>(null);
 
   const dwellTimerRef = useRef<number | null>(null);
-  const smoothedPositionRef = useRef<Point2D>({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
   const lastUpdateRef = useRef<number>(0);
   const lastBlinkRef = useRef<boolean>(false);
   const blinkCooldownRef = useRef<boolean>(false);
+  
+  // Smoothing buffer like ForeHeadDetector (deque with maxlen=5)
+  const positionBufferRef = useRef<Array<{ x: number, y: number }>>([]);
 
-  // Map forehead position to screen coordinates with throttling
+  // Map forehead position to screen coordinates
   useEffect(() => {
     if (!landmarks) return;
 
@@ -33,52 +35,64 @@ export const ForeheadCursor: React.FC<ForeheadCursorProps> = ({
     if (now - lastUpdateRef.current < 16) return; // ~60fps
     lastUpdateRef.current = now;
 
-    const { nose } = landmarks; // nose.x = rotation ratio (0-1), nose.y = vertical position
+    const { nose } = landmarks; // nose = direct nose tip position
 
-    // Use HEAD ROTATION for horizontal cursor movement!
-    // Turn head left/right instead of moving it side to side
-    // Much more natural and doesn't require repositioning
+    // EXACT implementation from ForeHeadDetector:
+    // They use: head_y = nose_tip.y (normalized 0-1)
+    // Then: target_y = head_y * WINDOW_HEIGHT
+    // With sensitivity adjustment
     
-    const rotationRatio = nose.x; // 0.5 = center, <0.5 = looking right, >0.5 = looking left
-    const verticalPosition = nose.y; // 0-1 vertical position
+    // nose.x and nose.y are already normalized (0-1) from MediaPipe
+    // FLIP X because video is mirrored - move right should move cursor right!
     
-    // Apply sensitivity to rotation
-    // Amplify small head turns into big cursor movements
-    const centerRotation = 0.5;
-    const rotationDeviation = (rotationRatio - centerRotation) * calibration.sensitivity;
-    
-    // Map rotation to horizontal screen position
-    // Video is mirrored, so flip the rotation
-    const targetX = (0.5 - rotationDeviation) * window.innerWidth;
-    
-    // Apply sensitivity to vertical position
+    // Apply sensitivity to extend range (deviation from center * sensitivity)
+    const centerX = 0.5;
     const centerY = 0.5;
-    const verticalDeviation = (verticalPosition - centerY) * calibration.sensitivity;
-    const targetY = (0.5 + verticalDeviation) * window.innerHeight;
+    const deviationX = (1 - nose.x) - centerX; // Flipped X
+    const deviationY = nose.y - centerY;
     
-    // Apply smoothing
-    const smoothing = calibration.smoothing;
-    const smoothedX = smoothedPositionRef.current.x * smoothing + targetX * (1 - smoothing);
-    const smoothedY = smoothedPositionRef.current.y * smoothing + targetY * (1 - smoothing);
+    const targetX = (centerX + deviationX * calibration.sensitivity) * window.innerWidth;
+    const targetY = (centerY + deviationY * calibration.sensitivity) * window.innerHeight;
     
-    smoothedPositionRef.current = { x: smoothedX, y: smoothedY };
+    // Add to smoothing buffer (max 5 samples, like deque(maxlen=5))
+    positionBufferRef.current.push({ x: targetX, y: targetY });
+    if (positionBufferRef.current.length > 5) {
+      positionBufferRef.current.shift(); // Remove oldest
+    }
+    
+    // Calculate average (smoothing)
+    const avgX = positionBufferRef.current.reduce((sum, p) => sum + p.x, 0) / positionBufferRef.current.length;
+    const avgY = positionBufferRef.current.reduce((sum, p) => sum + p.y, 0) / positionBufferRef.current.length;
 
     // Clamp to screen bounds with padding
-    const finalX = Math.max(20, Math.min(window.innerWidth - 20, smoothedX));
-    const finalY = Math.max(20, Math.min(window.innerHeight - 20, smoothedY));
+    const finalX = Math.max(20, Math.min(window.innerWidth - 20, avgX));
+    const finalY = Math.max(20, Math.min(window.innerHeight - 20, avgY));
 
     setCursorPosition({ x: finalX, y: finalY });
   }, [landmarks, calibration]);
 
-  // Blink detection for clicking
+  // Click detection (blink or mouth)
   useEffect(() => {
     if (!blinkData || !onDwellComplete) return;
 
-    const { isBlinking } = blinkData;
+    const { isBlinking, isMouthOpen } = blinkData;
+    
+    // Different trigger logic for blink vs mouth:
+    // - Blink: Trigger when eyes CLOSE then OPEN (lastBlinkRef=true, isBlinking=false)
+    // - Mouth: Trigger when mouth goes from CLOSED to OPEN (!lastBlinkRef, isMouthOpen=true)
+    
+    let shouldClick = false;
+    
+    if (calibration.clickMethod === 'mouth') {
+      // Mouth: Click when opening mouth (closed → open)
+      shouldClick = !lastBlinkRef.current && isMouthOpen && !blinkCooldownRef.current;
+    } else {
+      // Blink: Click when closing then opening eyes (closed → open)
+      shouldClick = lastBlinkRef.current && !isBlinking && !blinkCooldownRef.current;
+    }
 
-    // Detect blink transition (eyes closed -> eyes open)
-    if (lastBlinkRef.current && !isBlinking && !blinkCooldownRef.current) {
-      // Blink detected! Find element under cursor
+    if (shouldClick) {
+      // Click triggered! Find element under cursor
       const elementsAtPoint = document.elementsFromPoint(cursorPosition.x, cursorPosition.y);
       const clickableElement = elementsAtPoint.find(
         el => 
@@ -88,22 +102,26 @@ export const ForeheadCursor: React.FC<ForeheadCursorProps> = ({
       ) as HTMLElement | undefined;
 
       if (clickableElement) {
-        console.log('👁️✅ BLINK DETECTED! Clicking:', clickableElement.textContent?.trim());
+        const method = calibration.clickMethod === 'mouth' ? '👄 MOUTH OPEN' : '👁️ BLINK';
+        console.log(`${method} DETECTED! Clicking:`, clickableElement.textContent?.trim());
         onDwellComplete(clickableElement);
         
         // Cooldown to prevent multiple clicks
         blinkCooldownRef.current = true;
         setTimeout(() => {
           blinkCooldownRef.current = false;
-          console.log('🔄 Blink cooldown reset');
-        }, 800); // 800ms cooldown between blinks
+          console.log('🔄 Click cooldown reset');
+        }, 800); // 800ms cooldown between clicks
       } else {
-        console.log('👁️ Blink detected but no clickable element under cursor');
+        const method = calibration.clickMethod === 'mouth' ? '👄 Mouth open' : '👁️ Blink';
+        console.log(`${method} detected but no clickable element under cursor`);
       }
     }
 
-    lastBlinkRef.current = isBlinking;
-  }, [blinkData, cursorPosition, onDwellComplete]);
+    // Update last state based on method
+    const currentState = calibration.clickMethod === 'mouth' ? isMouthOpen : isBlinking;
+    lastBlinkRef.current = currentState;
+  }, [blinkData, cursorPosition, onDwellComplete, calibration.clickMethod]);
 
   // Check for hoverable elements under cursor
   useEffect(() => {

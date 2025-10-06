@@ -24,6 +24,7 @@ export interface CalibrationSettings {
   smoothing: number; // 0.1 - 0.9
   dwellTime: number; // milliseconds
   blinkEnabled: boolean;
+  clickMethod: 'blink' | 'mouth'; // Choose click trigger method
 }
 
 export interface CameraError {
@@ -55,4 +56,6 @@ export interface BlinkData {
   leftEyeClosed: number;  // 0-1, higher = more closed
   rightEyeClosed: number; // 0-1, higher = more closed
   isBlinking: boolean;
+  mouthOpen: number;      // 0-1, higher = more open
+  isMouthOpen: boolean;
 }
