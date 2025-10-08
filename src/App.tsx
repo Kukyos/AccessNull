@@ -3,14 +3,23 @@ import { CameraFeed } from './components/Camera/CameraFeed';
 import { ForeheadCursor } from './components/Cursor/ForeheadCursor';
 import { WorkingAccessibilityDashboard } from './components/WorkingAccessibilityDashboard';
 import { IntelligentVoiceBox } from './components/IntelligentVoiceBox';
+import { UniversitySidebar } from './components/University/UniversitySidebar';
+import { UniversityHero } from './components/University/UniversityHero';
+import { UniversityMainContent } from './components/University/UniversityMainContent';
 import { useFaceTracking } from './hooks/useFaceTracking';
 import { ChatScreen } from './screens/ChatScreen';
+import SettingsScreen from './components/Settings/SettingsScreen';
 import type { CalibrationSettings, AppScreen } from './types';
 
 function App() {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [currentScreen, setCurrentScreen] = useState<AppScreen>('instructions');
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  
+  // University interface state
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [currentSection, setCurrentSection] = useState('home');
+  const [accessibilityLevel, setAccessibilityLevel] = useState<'normal' | 'large' | 'extra-large'>('normal');
   
   // Add console log to track app initialization
   console.log('🚀 App component initialized, current screen:', currentScreen);
@@ -175,19 +184,19 @@ function App() {
           }}>
             {/* Header */}
             <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-              <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🏥</div>
+              <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>�️</div>
               <h1 style={{ 
                 fontSize: '2.5rem', 
                 fontWeight: 'bold', 
                 margin: '0 0 0.5rem 0',
-                background: 'linear-gradient(135deg, #3b82f6, #ef4444)',
+                background: 'linear-gradient(135deg, #2563eb, #ea580c)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent'
               }}>
-                AccessPoint Instructions
+                Karunya University Portal
               </h1>
               <p style={{ fontSize: '1.125rem', opacity: 0.8, margin: 0 }}>
-                Hands-Free Medical Interface - How It Works
+                Accessible University Interface - How It Works
               </p>
             </div>
 
@@ -258,14 +267,14 @@ function App() {
                   alignItems: 'center',
                   gap: '0.5rem'
                 }}>
-                  💬 NullChat (AI Assistant)
+                  💬 NullChat (University Assistant)
                 </h2>
                 <ul style={{ margin: 0, paddingLeft: '1.5rem', lineHeight: 1.6 }}>
-                  <li><strong>Access:</strong> Click "AI Assistant" from main menu</li>
-                  <li><strong>Type or speak:</strong> Ask questions about medical records, campus info</li>
+                  <li><strong>Access:</strong> Click on the chat icon in sidebar or say "Open chat"</li>
+                  <li><strong>Ask about:</strong> Courses, faculty, admissions, facilities, circulars, events</li>
                   <li><strong>Languages:</strong> Supports English and Hindi</li>
                   <li><strong>Voice input:</strong> Click microphone button to speak your question</li>
-                  <li><strong>Responses:</strong> Get spoken answers automatically</li>
+                  <li><strong>Smart responses:</strong> Get information about university services and support</li>
                 </ul>
               </div>
 
@@ -283,24 +292,24 @@ function App() {
                   alignItems: 'center',
                   gap: '0.5rem'
                 }}>
-                  🏥 Main Features
+                  �️ University Features
                 </h2>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                   <div>
-                    <strong>📋 Medical Records:</strong><br />
-                    View prescriptions and medical history
+                    <strong>� Academics:</strong><br />
+                    Course catalog, schedules, and grades
                   </div>
                   <div>
-                    <strong>🚨 Emergency:</strong><br />
-                    Quick access to emergency contacts and 911
+                    <strong>� Circulars:</strong><br />
+                    Latest university announcements
                   </div>
                   <div>
-                    <strong>♿ Accessibility:</strong><br />
-                    Campus navigation and accessibility info
+                    <strong>🏢 Facilities:</strong><br />
+                    Library, labs, and campus resources
                   </div>
                   <div>
-                    <strong>⚙️ Settings:</strong><br />
-                    Customize face tracking and accessibility features
+                    <strong>🆘 Support:</strong><br />
+                    Health center, counseling, and emergency
                   </div>
                 </div>
               </div>
@@ -384,262 +393,65 @@ function App() {
         </div>
       )}
 
-      {/* Main Menu */}
+      {/* University Interface */}
       {currentScreen === 'menu' && (
         <>
-          {/* Header */}
-          <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            background: 'linear-gradient(180deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0) 100%)',
-            padding: '2rem',
-            zIndex: 10,
-          }}>
-            <h1 style={{
-              fontSize: '2.5rem',
-              fontWeight: 'bold',
-              color: 'white',
-              textShadow: '0 2px 10px rgba(0,0,0,0.5)',
-              margin: 0,
-            }}>
-              🏥 AccessPoint
-            </h1>
-            <p style={{
-              fontSize: '1.125rem',
-              color: 'rgba(255,255,255,0.9)',
-              textShadow: '0 1px 5px rgba(0,0,0,0.5)',
-              margin: '0.5rem 0 0 0',
-            }}>
-              Hands-Free Medical Interface
-            </p>
-          </div>
+          {/* University Sidebar */}
+          <UniversitySidebar
+            isCollapsed={sidebarCollapsed}
+            onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+            currentSection={currentSection}
+            onSectionChange={(section) => {
+              setCurrentSection(section);
+              // Handle special sections
+              if (section === 'chat') {
+                setCurrentScreen('chat');
+              } else if (section === 'emergency') {
+                setCurrentScreen('emergency');
+              } else if (section === 'technical') {
+                setCurrentScreen('settings');
+              }
+            }}
+            faceTrackingEnabled={faceTrackingEnabled}
+            accessibilityLevel={accessibilityLevel}
+          />
 
-          {/* Main Menu Cards */}
+          {/* University Hero Section */}
+          <UniversityHero
+            sidebarCollapsed={sidebarCollapsed}
+            faceTrackingEnabled={faceTrackingEnabled}
+            accessibilityLevel={accessibilityLevel}
+          />
+
+          {/* Main Content Area */}
+          <UniversityMainContent
+            currentSection={currentSection}
+            sidebarCollapsed={sidebarCollapsed}
+            faceTrackingEnabled={faceTrackingEnabled}
+            accessibilityLevel={accessibilityLevel}
+            onSectionChange={setCurrentSection}
+          />
+
+          {/* Quick Access Toolbar */}
           <div style={{
             position: 'fixed',
-            inset: 0,
+            top: '20px',
+            right: '20px',
             display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '2rem',
-            zIndex: 10,
+            gap: '0.5rem',
+            zIndex: 1100
           }}>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(2, 1fr)',
-              gap: '1.5rem',
-              maxWidth: '1000px',
-              width: '100%',
-            }}>
-              {/* Medical Records */}
-              <button
-                data-hoverable
-                onClick={() => setCurrentScreen('prescriptions')}
-                style={{
-                  background: 'rgba(255, 255, 255, 0.15)',
-                  backdropFilter: 'blur(10px)',
-                  border: '2px solid rgba(255, 255, 255, 0.3)',
-                  borderRadius: '1rem',
-                  padding: '2.5rem',
-                  color: 'white',
-                  fontSize: '1.5rem',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  transition: 'all 0.3s',
-                  textAlign: 'left',
-                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(231, 76, 60, 0.3)';
-                  e.currentTarget.style.transform = 'scale(1.05)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
-                  e.currentTarget.style.transform = 'scale(1)';
-                }}
-              >
-                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📋</div>
-                <div>Medical Records</div>
-                <div style={{ fontSize: '0.875rem', opacity: 0.8, marginTop: '0.5rem' }}>
-                  View prescriptions & history
-                </div>
-              </button>
-
-              {/* Emergency Contact */}
-              <button
-                data-hoverable
-                onClick={() => setCurrentScreen('emergency')}
-                style={{
-                  background: 'rgba(255, 255, 255, 0.15)',
-                  backdropFilter: 'blur(10px)',
-                  border: '2px solid rgba(255, 255, 255, 0.3)',
-                  borderRadius: '1rem',
-                  padding: '2.5rem',
-                  color: 'white',
-                  fontSize: '1.5rem',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  transition: 'all 0.3s',
-                  textAlign: 'left',
-                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(231, 76, 60, 0.3)';
-                  e.currentTarget.style.transform = 'scale(1.05)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
-                  e.currentTarget.style.transform = 'scale(1)';
-                }}
-              >
-                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🚨</div>
-                <div>Emergency</div>
-                <div style={{ fontSize: '0.875rem', opacity: 0.8, marginTop: '0.5rem' }}>
-                  Contact doctor immediately
-                </div>
-              </button>
-
-              {/* Campus Accessibility */}
-              <button
-                data-hoverable
-                onClick={() => setCurrentScreen('campus-info')}
-                style={{
-                  background: 'rgba(255, 255, 255, 0.15)',
-                  backdropFilter: 'blur(10px)',
-                  border: '2px solid rgba(255, 255, 255, 0.3)',
-                  borderRadius: '1rem',
-                  padding: '2.5rem',
-                  color: 'white',
-                  fontSize: '1.5rem',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  transition: 'all 0.3s',
-                  textAlign: 'left',
-                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(231, 76, 60, 0.3)';
-                  e.currentTarget.style.transform = 'scale(1.05)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
-                  e.currentTarget.style.transform = 'scale(1)';
-                }}
-              >
-                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>♿</div>
-                <div>Accessibility</div>
-                <div style={{ fontSize: '0.875rem', opacity: 0.8, marginTop: '0.5rem' }}>
-                  Campus navigation & info
-                </div>
-              </button>
-
-              {/* AI Assistant */}
-              <button
-                data-hoverable
-                onClick={() => setCurrentScreen('chat')}
-                style={{
-                  background: 'rgba(255, 255, 255, 0.15)',
-                  backdropFilter: 'blur(10px)',
-                  border: '2px solid rgba(255, 255, 255, 0.3)',
-                  borderRadius: '1rem',
-                  padding: '2.5rem',
-                  color: 'white',
-                  fontSize: '1.5rem',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  transition: 'all 0.3s',
-                  textAlign: 'left',
-                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(231, 76, 60, 0.3)';
-                  e.currentTarget.style.transform = 'scale(1.05)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
-                  e.currentTarget.style.transform = 'scale(1)';
-                }}
-              >
-                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🤖</div>
-                <div>AI Assistant</div>
-                <div style={{ fontSize: '0.875rem', opacity: 0.8, marginTop: '0.5rem' }}>
-                  Multilingual medical help
-                </div>
-              </button>
-            </div>
-          </div>
-
-          {/* Bottom Sidebar */}
-          <div style={{
-            position: 'fixed',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            background: 'linear-gradient(0deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0) 100%)',
-            padding: '1.5rem 2rem',
-            display: 'flex',
-            gap: '1rem',
-            justifyContent: 'center',
-            zIndex: 10,
-          }}>
-            <button
-              data-hoverable
-              onClick={() => setCurrentScreen('settings')}
-              style={{
-                background: 'rgba(255, 255, 255, 0.2)',
-                backdropFilter: 'blur(10px)',
-                border: '1px solid rgba(255, 255, 255, 0.3)',
-                borderRadius: '0.75rem',
-                padding: '1rem 2rem',
-                color: 'white',
-                fontSize: '1rem',
-                fontWeight: '500',
-                cursor: 'pointer',
-                transition: 'all 0.3s',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-              }}
-            >
-              <span style={{ fontSize: '1.5rem' }}>⚙️</span>
-              Settings
-            </button>
-            <button
-              data-hoverable
-              onClick={() => setCurrentScreen('accessibility-settings')}
-              style={{
-                background: 'rgba(255, 255, 255, 0.2)',
-                backdropFilter: 'blur(10px)',
-                border: '1px solid rgba(255, 255, 255, 0.3)',
-                borderRadius: '0.75rem',
-                padding: '1rem 2rem',
-                color: 'white',
-                fontSize: '1rem',
-                fontWeight: '500',
-                cursor: 'pointer',
-                transition: 'all 0.3s',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-              }}
-            >
-              <span style={{ fontSize: '1.5rem' }}>♿</span>
-              Accessibility
-            </button>
-
             <button
               data-hoverable
               onClick={() => setFaceTrackingEnabled(!faceTrackingEnabled)}
               style={{
-                background: faceTrackingEnabled ? 'rgba(76, 175, 80, 0.3)' : 'rgba(255, 255, 255, 0.2)',
+                background: faceTrackingEnabled ? 'rgba(76, 175, 80, 0.9)' : 'rgba(255, 255, 255, 0.9)',
                 backdropFilter: 'blur(10px)',
-                border: faceTrackingEnabled ? '1px solid rgba(76, 175, 80, 0.5)' : '1px solid rgba(255, 255, 255, 0.3)',
-                borderRadius: '0.75rem',
-                padding: '1rem 2rem',
-                color: 'white',
-                fontSize: '1rem',
+                border: `2px solid ${faceTrackingEnabled ? '#4CAF50' : '#ccc'}`,
+                borderRadius: '12px',
+                padding: '0.75rem',
+                color: faceTrackingEnabled ? 'white' : '#333',
+                fontSize: '0.875rem',
                 fontWeight: '500',
                 cursor: 'pointer',
                 transition: 'all 0.3s',
@@ -648,20 +460,21 @@ function App() {
                 gap: '0.5rem',
               }}
             >
-              <span style={{ fontSize: '1.5rem' }}>👁️</span>
-              Face Track: {faceTrackingEnabled ? 'ON' : 'OFF'}
+              <span style={{ fontSize: '1.25rem' }}>👁️</span>
+              {faceTrackingEnabled ? 'Face Tracking ON' : 'Face Tracking OFF'}
             </button>
+            
             <button
               data-hoverable
-              onClick={() => alert('Help & Tutorial')}
+              onClick={() => setCurrentScreen('accessibility-settings')}
               style={{
-                background: 'rgba(255, 255, 255, 0.2)',
+                background: 'rgba(59, 130, 246, 0.9)',
                 backdropFilter: 'blur(10px)',
-                border: '1px solid rgba(255, 255, 255, 0.3)',
-                borderRadius: '0.75rem',
-                padding: '1rem 2rem',
+                border: '2px solid #3B82F6',
+                borderRadius: '12px',
+                padding: '0.75rem',
                 color: 'white',
-                fontSize: '1rem',
+                fontSize: '0.875rem',
                 fontWeight: '500',
                 cursor: 'pointer',
                 transition: 'all 0.3s',
@@ -670,30 +483,8 @@ function App() {
                 gap: '0.5rem',
               }}
             >
-              <span style={{ fontSize: '1.5rem' }}>❓</span>
-              Help
-            </button>
-            <button
-              data-hoverable
-              onClick={() => alert('Signing out...')}
-              style={{
-                background: 'rgba(231, 76, 60, 0.3)',
-                backdropFilter: 'blur(10px)',
-                border: '1px solid rgba(231, 76, 60, 0.5)',
-                borderRadius: '0.75rem',
-                padding: '1rem 2rem',
-                color: 'white',
-                fontSize: '1rem',
-                fontWeight: '500',
-                cursor: 'pointer',
-                transition: 'all 0.3s',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-              }}
-            >
-              <span style={{ fontSize: '1.5rem' }}>🚪</span>
-              Sign Out
+              <span style={{ fontSize: '1.25rem' }}>♿</span>
+              Accessibility
             </button>
           </div>
         </>
@@ -701,6 +492,16 @@ function App() {
 
       {/* Chat Screen */}
       {currentScreen === 'chat' && <ChatScreen onClose={() => setCurrentScreen('menu')} />}
+
+      {/* Settings Screen */}
+      {currentScreen === 'settings' && (
+        <SettingsScreen 
+          onBack={() => setCurrentScreen('menu')} 
+          calibration={calibration}
+          onCalibrationChange={setCalibration}
+          faceTrackingEnabled={faceTrackingEnabled}
+        />
+      )}
 
       {/* Emergency Screen */}
       {currentScreen === 'emergency' && (
@@ -948,151 +749,7 @@ function App() {
         </div>
       )}
 
-      {/* Settings Screen */}
-      {currentScreen === 'settings' && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0, 0, 0, 0.85)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 10,
-        }}>
-          <div style={{
-            background: 'rgba(255, 255, 255, 0.15)',
-            backdropFilter: 'blur(20px)',
-            border: '2px solid rgba(255, 255, 255, 0.3)',
-            borderRadius: '1.5rem',
-            padding: '3rem',
-            maxWidth: '600px',
-            width: '90%',
-          }}>
-            <h2 style={{ color: 'white', fontSize: '2.5rem', margin: '0 0 2rem 0' }}>
-              ⚙️ Settings
-            </h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-              {/* Sensitivity Setting */}
-              <div>
-                <label style={{ color: 'white', display: 'block', marginBottom: '0.5rem', fontSize: '1.125rem' }}>
-                  Cursor Sensitivity: {calibration.sensitivity.toFixed(1)}
-                </label>
-                <input
-                  type="range"
-                  min="0.5"
-                  max="3.0"
-                  step="0.1"
-                  value={calibration.sensitivity}
-                  onChange={(e) => setCalibration(prev => ({ ...prev, sensitivity: parseFloat(e.target.value) }))}
-                  style={{ width: '100%', cursor: 'pointer' }}
-                />
-              </div>
-              {/* Smoothing Setting */}
-              <div>
-                <label style={{ color: 'white', display: 'block', marginBottom: '0.5rem', fontSize: '1.125rem' }}>
-                  Smoothing: {calibration.smoothing.toFixed(1)}
-                </label>
-                <input
-                  type="range"
-                  min="0.1"
-                  max="0.9"
-                  step="0.1"
-                  value={calibration.smoothing}
-                  onChange={(e) => setCalibration(prev => ({ ...prev, smoothing: parseFloat(e.target.value) }))}
-                  style={{ width: '100%', cursor: 'pointer' }}
-                />
-              </div>
-              {/* Dwell Time Setting */}
-              <div style={{ opacity: faceTrackingEnabled ? 1 : 0.5 }}>
-                <label style={{ color: 'white', display: 'block', marginBottom: '0.5rem', fontSize: '1.125rem' }}>
-                  Click Dwell Time: {calibration.dwellTime}ms
-                  {!faceTrackingEnabled && <span style={{ fontSize: '0.875rem', opacity: 0.7 }}> (Enable Face Tracking first)</span>}
-                </label>
-                <input
-                  type="range"
-                  min="500"
-                  max="3000"
-                  step="100"
-                  value={calibration.dwellTime}
-                  onChange={(e) => faceTrackingEnabled && setCalibration(prev => ({ ...prev, dwellTime: parseInt(e.target.value) }))}
-                  disabled={!faceTrackingEnabled}
-                  style={{ 
-                    width: '100%', 
-                    cursor: faceTrackingEnabled ? 'pointer' : 'not-allowed',
-                    opacity: faceTrackingEnabled ? 1 : 0.5
-                  }}
-                />
-              </div>
-              
-              {/* Click Method Setting */}
-              <div>
-                <label style={{ color: 'white', display: 'block', marginBottom: '0.75rem', fontSize: '1.125rem' }}>
-                  Click Method
-                </label>
-                <div style={{ display: 'flex', gap: '1rem' }}>
-                  <button
-                    data-hoverable
-                    onClick={() => setCalibration(prev => ({ ...prev, clickMethod: 'blink' }))}
-                    style={{
-                      flex: 1,
-                      padding: '1rem',
-                      borderRadius: '0.75rem',
-                      border: calibration.clickMethod === 'blink' ? '3px solid #27AE60' : '2px solid rgba(255, 255, 255, 0.3)',
-                      background: calibration.clickMethod === 'blink' ? 'rgba(39, 174, 96, 0.3)' : 'rgba(255, 255, 255, 0.1)',
-                      color: 'white',
-                      fontSize: '1rem',
-                      cursor: 'pointer',
-                      fontWeight: calibration.clickMethod === 'blink' ? 'bold' : 'normal',
-                    }}
-                  >
-                    👁️ Blink
-                  </button>
-                  <button
-                    data-hoverable
-                    onClick={() => setCalibration(prev => ({ ...prev, clickMethod: 'mouth' }))}
-                    style={{
-                      flex: 1,
-                      padding: '1rem',
-                      borderRadius: '0.75rem',
-                      border: calibration.clickMethod === 'mouth' ? '3px solid #27AE60' : '2px solid rgba(255, 255, 255, 0.3)',
-                      background: calibration.clickMethod === 'mouth' ? 'rgba(39, 174, 96, 0.3)' : 'rgba(255, 255, 255, 0.1)',
-                      color: 'white',
-                      fontSize: '1rem',
-                      cursor: 'pointer',
-                      fontWeight: calibration.clickMethod === 'mouth' ? 'bold' : 'normal',
-                    }}
-                  >
-                    👄 Mouth Open
-                  </button>
-                </div>
-                <p style={{ fontSize: '0.875rem', opacity: 0.8, margin: '0.5rem 0 0 0', color: 'white' }}>
-                  {calibration.clickMethod === 'blink' 
-                    ? 'Blink both eyes to click buttons' 
-                    : 'Open your mouth wide to click buttons'}
-                </p>
-              </div>
-            </div>
-            <button
-              data-hoverable
-              onClick={() => setCurrentScreen('menu')}
-              style={{
-                background: 'rgba(255, 255, 255, 0.2)',
-                backdropFilter: 'blur(10px)',
-                border: '1px solid rgba(255, 255, 255, 0.3)',
-                borderRadius: '0.75rem',
-                padding: '1rem 2rem',
-                color: 'white',
-                fontSize: '1rem',
-                cursor: 'pointer',
-                marginTop: '2rem',
-                width: '100%',
-              }}
-            >
-              ← Back to Menu
-            </button>
-          </div>
-        </div>
-      )}
+
 
       {/* Accessibility Settings Screen */}
       {currentScreen === 'accessibility-settings' && (

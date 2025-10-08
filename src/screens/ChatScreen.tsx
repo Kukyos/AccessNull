@@ -19,7 +19,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ onClose }) => {
     {
       id: '1',
       role: 'assistant',
-      content: 'Hello! I\'m AccessPoint, your medical and campus assistant. How can I help you today?',
+      content: 'Hello! I\'m NullChat, your Karunya University AI assistant. I can help you with courses, faculty, admissions, facilities, and campus services. How can I assist you today?',
       timestamp: new Date(),
     },
   ]);
@@ -175,16 +175,16 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ onClose }) => {
       {/* Header */}
       <div style={{
         padding: '1.5rem',
-        backgroundColor: '#E74C3C',
+        background: 'linear-gradient(135deg, #2563eb, #ea580c)',
         color: 'white',
         borderBottom: '2px solid rgba(255, 255, 255, 0.2)',
       }}>
         <div style={{ textAlign: 'center' }}>
           <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: 0 }}>
-            💬 AI Assistant
+            💬 NullChat - University Assistant
           </h2>
           <p style={{ fontSize: '0.875rem', opacity: 0.9, margin: '0.25rem 0 0 0' }}>
-            Ask about prescriptions, campus accessibility, or medical services
+            Ask about courses, faculty, admissions, facilities, events, and university services
           </p>
         </div>
         
@@ -219,8 +219,8 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ onClose }) => {
       {/* Language Toggle */}
       <div style={{
         padding: '0.75rem 1.5rem',
-        backgroundColor: 'rgba(231, 76, 60, 0.1)',
-        borderBottom: '1px solid rgba(231, 76, 60, 0.2)',
+        backgroundColor: 'rgba(37, 99, 235, 0.1)',
+        borderBottom: '1px solid rgba(37, 99, 235, 0.2)',
         display: 'flex',
         gap: '0.5rem',
         alignItems: 'center',
@@ -232,8 +232,8 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ onClose }) => {
             padding: '0.25rem 0.75rem',
             borderRadius: '4px',
             border: 'none',
-            backgroundColor: language === 'en' ? '#E74C3C' : 'white',
-            color: language === 'en' ? 'white' : '#E74C3C',
+            backgroundColor: language === 'en' ? '#2563eb' : 'white',
+            color: language === 'en' ? 'white' : '#2563eb',
             cursor: 'pointer',
             fontSize: '0.875rem',
             fontWeight: '500',
@@ -247,8 +247,8 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ onClose }) => {
             padding: '0.25rem 0.75rem',
             borderRadius: '4px',
             border: 'none',
-            backgroundColor: language === 'hi' ? '#E74C3C' : 'white',
-            color: language === 'hi' ? 'white' : '#E74C3C',
+            backgroundColor: language === 'hi' ? '#2563eb' : 'white',
+            color: language === 'hi' ? 'white' : '#2563eb',
             cursor: 'pointer',
             fontSize: '0.875rem',
             fontWeight: '500',
@@ -280,7 +280,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ onClose }) => {
                 maxWidth: '70%',
                 padding: '1rem',
                 borderRadius: '12px',
-                backgroundColor: message.role === 'user' ? '#E74C3C' : '#F8F9FA',
+                backgroundColor: message.role === 'user' ? '#2563eb' : '#F8F9FA',
                 color: message.role === 'user' ? 'white' : '#2C3E50',
                 boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
               }}
@@ -324,7 +324,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ onClose }) => {
       <div style={{
         padding: '1.5rem',
         backgroundColor: 'white',
-        borderTop: '2px solid rgba(231, 76, 60, 0.2)',
+        borderTop: '2px solid rgba(37, 99, 235, 0.2)',
         display: 'flex',
         gap: '0.75rem',
         alignItems: 'flex-end',
@@ -361,8 +361,8 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ onClose }) => {
             padding: '1.5rem 2rem',
             borderRadius: '12px',
             border: 'none',
-            backgroundColor: isRecording ? '#E74C3C' : '#F8F9FA',
-            color: isRecording ? 'white' : '#E74C3C',
+            backgroundColor: isRecording ? '#ea580c' : '#F8F9FA',
+            color: isRecording ? 'white' : '#ea580c',
             cursor: isLoading ? 'not-allowed' : 'pointer',
             fontSize: '2.5rem',
             transition: 'all 0.2s',
@@ -386,7 +386,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ onClose }) => {
             padding: '1.5rem 2.5rem',
             borderRadius: '12px',
             border: 'none',
-            backgroundColor: '#E74C3C',
+            backgroundColor: '#2563eb',
             color: 'white',
             cursor: (isLoading || !input.trim() || isRecording) ? 'not-allowed' : 'pointer',
             fontSize: '1.5rem',

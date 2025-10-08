@@ -117,13 +117,14 @@ export async function textToSpeech(
   config: VoiceConfig = { language: 'en-IN' }
 ): Promise<SpeechResult> {
   try {
-    const apiKey = import.meta.env.VITE_GOOGLE_TRANSLATE_API_KEY;
+    // Try localStorage first, then fall back to environment variable
+    const apiKey = localStorage.getItem('user_google_api_key') || import.meta.env.VITE_GOOGLE_TRANSLATE_API_KEY;
     
     if (!apiKey || apiKey === 'your_api_key_here') {
       return {
         audioUrl: '',
         duration: 0,
-        error: 'Google Cloud API key not configured'
+        error: 'Google Cloud API key not configured - using browser speech synthesis'
       };
     }
 

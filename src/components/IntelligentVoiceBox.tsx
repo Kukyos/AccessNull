@@ -368,17 +368,34 @@ class IntelligentCommandProcessor {
 
 export const IntelligentVoiceBox: React.FC = () => {
   const [isListening, setIsListening] = useState(false);
+  const [isWakeWordMode, setIsWakeWordMode] = useState(true); // Start in wake word mode by default
   const [spokenText, setSpokenText] = useState('');
-  const [status, setStatus] = useState('Click mic to start');
+  const [status, setStatus] = useState('👂 Say "Hey Karunya" to activate...');
   const [lastAction, setLastAction] = useState('');
   const [confidence, setConfidence] = useState(0);
   const [isExpanded, setIsExpanded] = useState(false);
   
   const recognitionRef = useRef<any>(null);
+  const wakeWordRecognitionRef = useRef<any>(null);
   const processorRef = useRef(new IntelligentCommandProcessor());
+
+  // Wake word detection function
+  const detectWakeWord = (text: string): boolean => {
+    const wakeWords = [
+      'hey karunya',
+      'hi karunya', 
+      'karunya',
+      'hey nullistant',
+      'nullistant'
+    ];
+    
+    const lowerText = text.toLowerCase().trim();
+    return wakeWords.some(wake => lowerText.includes(wake));
+  };
 
   useEffect(() => {
     if ('webkitSpeechRecognition' in window) {
+      // Main command recognition
       const recognition = new (window as any).webkitSpeechRecognition();
       recognition.continuous = false;
       recognition.interimResults = true;
@@ -387,7 +404,7 @@ export const IntelligentVoiceBox: React.FC = () => {
       let finalTranscript = '';
       
       recognition.onstart = () => {
-        setStatus('🤖 AI listening...');
+        setStatus('🤖 Nullistant listening...');
         setSpokenText('');
         finalTranscript = '';
       };
@@ -414,16 +431,98 @@ export const IntelligentVoiceBox: React.FC = () => {
         console.log('🎯 Final transcript:', finalTranscript);
         
         if (finalTranscript.trim()) {
-          setStatus('🤖 AI analyzing...');
+          setStatus('🤖 Nullistant analyzing...');
           await processIntelligentCommand(finalTranscript.trim());
+          
+          // Return to wake word mode after processing
+          setTimeout(() => {
+            if (!isListening) {
+              startWakeWordListening();
+            }
+          }, 2000);
         } else {
-          setStatus('No speech detected');
+          setStatus('No command detected');
+          startWakeWordListening();
         }
       };
       
       recognitionRef.current = recognition;
+
+      // Wake word recognition (continuous)
+      const wakeWordRecognition = new (window as any).webkitSpeechRecognition();
+      wakeWordRecognition.continuous = true;
+      wakeWordRecognition.interimResults = true;
+      wakeWordRecognition.lang = 'en-US';
+      
+      wakeWordRecognition.onresult = (event: any) => {
+        let transcript = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          transcript += event.results[i][0].transcript;
+        }
+        
+        console.log('👂 Wake word detection:', transcript);
+        
+        if (detectWakeWord(transcript)) {
+          console.log('🎯 Wake word detected!');
+          wakeWordRecognition.stop();
+          setIsWakeWordMode(false);
+          
+          // Brief pause, then start command listening
+          setTimeout(() => {
+            setStatus('🎯 Wake word detected! Speak your command...');
+            startCommandListening();
+          }, 500);
+        }
+      };
+      
+      wakeWordRecognition.onerror = (event: any) => {
+        console.log('Wake word recognition error:', event.error);
+        // Restart wake word listening on error
+        setTimeout(() => {
+          if (isWakeWordMode) {
+            startWakeWordListening();
+          }
+        }, 1000);
+      };
+      
+      wakeWordRecognitionRef.current = wakeWordRecognition;
+      
+      // Start wake word listening by default after a short delay
+      setTimeout(() => {
+        startWakeWordListening();
+      }, 500);
+    } else {
+      setStatus('❌ Speech recognition not supported');
+      console.error('Speech recognition not supported in this browser');
     }
-  }, []); // Remove spokenText dependency to prevent re-initialization
+
+    // Cleanup function
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+      if (wakeWordRecognitionRef.current) {
+        wakeWordRecognitionRef.current.stop();
+      }
+    };
+  }, []);
+
+  const startWakeWordListening = () => {
+    if (wakeWordRecognitionRef.current && !isListening) {
+      setIsWakeWordMode(true);
+      setStatus('👂 Say "Hey Karunya" to activate...');
+      setSpokenText('');
+      wakeWordRecognitionRef.current.start();
+    }
+  };
+
+  const startCommandListening = () => {
+    if (recognitionRef.current && !isListening) {
+      setIsListening(true);
+      setIsWakeWordMode(false);
+      recognitionRef.current.start();
+    }
+  };
 
   const processIntelligentCommand = async (command: string) => {
     try {
@@ -447,9 +546,13 @@ export const IntelligentVoiceBox: React.FC = () => {
   const toggleListening = () => {
     if (isListening) {
       recognitionRef.current?.stop();
+      startWakeWordListening();
+    } else if (isWakeWordMode) {
+      wakeWordRecognitionRef.current?.stop();
+      setIsWakeWordMode(false);
+      setStatus('Wake word listening stopped');
     } else {
-      setIsListening(true);
-      recognitionRef.current?.start();
+      startCommandListening();
     }
   };
 
@@ -487,9 +590,11 @@ export const IntelligentVoiceBox: React.FC = () => {
             cursor: 'pointer',
             userSelect: 'none',
             padding: '8px 12px',
-            backgroundColor: 'rgba(239, 68, 68, 0.2)',
+            backgroundColor: isWakeWordMode ? 'rgba(59, 130, 246, 0.2)' : 
+                            isListening ? 'rgba(239, 68, 68, 0.3)' : 'rgba(239, 68, 68, 0.2)',
             borderRadius: '12px',
-            border: '1px solid rgba(239, 68, 68, 0.4)',
+            border: isWakeWordMode ? '1px solid rgba(59, 130, 246, 0.4)' : 
+                   '1px solid rgba(239, 68, 68, 0.4)',
             marginBottom: isExpanded ? '15px' : '0',
             minHeight: '40px',
             transition: 'all 0.3s ease'
@@ -497,19 +602,24 @@ export const IntelligentVoiceBox: React.FC = () => {
           data-hoverable="true"
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ color: '#ef4444', fontSize: '16px' }}>🤖</span>
+            <span style={{ 
+              color: isWakeWordMode ? '#3b82f6' : '#ef4444', 
+              fontSize: '16px' 
+            }}>
+              {isWakeWordMode ? '👂' : '🤖'}
+            </span>
             <span style={{ 
               fontWeight: 'bold', 
               fontSize: '13px',
               color: 'white'
             }}>
-              AI Voice Command
+              {isWakeWordMode ? 'Nullistant (Wake Mode)' : 'Nullistant'}
             </span>
-            {isListening && (
+            {(isListening || isWakeWordMode) && (
               <div style={{ 
                 width: '6px', 
                 height: '6px', 
-                backgroundColor: '#ef4444', 
+                backgroundColor: isWakeWordMode ? '#3b82f6' : '#ef4444', 
                 borderRadius: '50%',
                 animation: 'pulse 1s infinite'
               }} />
@@ -555,7 +665,9 @@ export const IntelligentVoiceBox: React.FC = () => {
               padding: '10px',
               background: isListening 
                 ? 'linear-gradient(135deg, #ff4444, #cc0000)' 
-                : 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                : isWakeWordMode
+                ? 'linear-gradient(135deg, #3b82f6, #1d4ed8)'
+                : 'linear-gradient(135deg, #059669, #047857)',
               color: 'white',
               border: 'none',
               borderRadius: '8px',
@@ -567,7 +679,9 @@ export const IntelligentVoiceBox: React.FC = () => {
             }}
             data-hoverable="true"
           >
-            {isListening ? '🔴 Stop' : '🎤 Listen'}
+            {isListening ? '🔴 Stop Listening' : 
+             isWakeWordMode ? '👂 Wake Mode Active' : 
+             '🎤 Start Wake Mode'}
           </button>
           
           {/* Speech Display */}
@@ -631,7 +745,8 @@ export const IntelligentVoiceBox: React.FC = () => {
             opacity: 0.6,
             lineHeight: 1.3
           }}>
-            <strong>Try:</strong> "Help", "Emergency", "Go back"
+            <strong>Wake words:</strong> "Hey Karunya", "Karunya", "Nullistant"<br/>
+            <strong>Commands:</strong> "Go to academics", "Show circulars", "Help"
           </div>
           </div>
         )}

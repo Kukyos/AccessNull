@@ -51,7 +51,8 @@ export async function translateText(
   sourceLanguage?: string
 ): Promise<string> {
   try {
-    const apiKey = import.meta.env.VITE_GOOGLE_TRANSLATE_API_KEY;
+    // Try localStorage first, then fall back to environment variable
+    const apiKey = localStorage.getItem('user_google_api_key') || import.meta.env.VITE_GOOGLE_TRANSLATE_API_KEY;
     
     // If no API key or translation not needed, return original
     if (!apiKey || apiKey === 'your_api_key_here') {
