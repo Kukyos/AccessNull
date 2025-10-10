@@ -116,8 +116,7 @@ export async function sendChatMessage(
   try {
     // Try localStorage first, then fall back to environment variable, then default API key
     const apiKey = localStorage.getItem('user_groq_api_key') || 
-                   import.meta.env.VITE_GROQ_API_KEY || 
-                   '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';
+                   import.meta.env.VITE_GROQ_API_KEY ;
     
     if (!apiKey || apiKey === 'your_groq_api_key_here') {
       return {
