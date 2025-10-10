@@ -6,10 +6,12 @@ import { IntelligentVoiceBox } from './components/IntelligentVoiceBox';
 import { UniversitySidebar } from './components/University/UniversitySidebar';
 import { UniversityHero } from './components/University/UniversityHero';
 import { UniversityMainContent } from './components/University/UniversityMainContent';
+import { AccessibleInstructions } from './components/AccessibleInstructions';
 import { useFaceTracking } from './hooks/useFaceTracking';
 import { ChatScreen } from './screens/ChatScreen';
 import SettingsScreen from './components/Settings/SettingsScreen';
 import type { CalibrationSettings, AppScreen } from './types';
+import { ScreenReader } from './utils/screenReader';
 
 function App() {
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -24,8 +26,9 @@ function App() {
   // Add console log to track app initialization
   console.log('🚀 App component initialized, current screen:', currentScreen);
 
-  // Simplified state for testing
-  const [faceTrackingEnabled, setFaceTrackingEnabled] = useState(true); // Enabled by default
+  // Simplified state for testing - DISABLED face tracking to prevent Chrome issues
+  const [faceTrackingEnabled, setFaceTrackingEnabled] = useState(false); // DISABLED by default
+  const [voiceAssistantEnabled, setVoiceAssistantEnabled] = useState(true); // Voice assistant enabled by default
 
   // Default calibration settings - matching ForeHeadDetector
   const [calibration, setCalibration] = useState<CalibrationSettings>({
@@ -73,14 +76,31 @@ function App() {
       currentScreen 
     });
     
-    // Move to menu when camera is ready, even if no landmarks yet
-    if (stream && !isTrackingLoading && currentScreen === 'loading') {
-      console.log('✅ Ready to show menu!');
-      const timer = setTimeout(() => {
-        console.log('🎯 Switching to menu screen');
-        setCurrentScreen('menu');
-      }, 1000);
-      return () => clearTimeout(timer);
+    // Move to menu when ready
+    if (currentScreen === 'loading') {
+      if (!faceTrackingEnabled) {
+        // Skip camera setup when face tracking is disabled
+        console.log('✅ Face tracking disabled, going straight to menu!');
+        const timer = setTimeout(() => {
+          console.log('🎯 Switching to menu screen (no face tracking)');
+          setCurrentScreen('menu');
+          // Announce the main portal
+          const screenReader = ScreenReader.getInstance();
+          screenReader.announcePageChange('main');
+        }, 500); // Faster since no camera needed
+        return () => clearTimeout(timer);
+      } else if (stream && !isTrackingLoading) {
+        // Normal camera ready flow
+        console.log('✅ Ready to show menu!');
+        const timer = setTimeout(() => {
+          console.log('🎯 Switching to menu screen');
+          setCurrentScreen('menu');
+          // Announce the main portal
+          const screenReader = ScreenReader.getInstance();
+          screenReader.announcePageChange('main');
+        }, 1000);
+        return () => clearTimeout(timer);
+      }
     }
   }, [stream, isTrackingLoading, landmarks, currentScreen]);
 
@@ -102,8 +122,8 @@ function App() {
 
   return (
     <div>
-      {/* Camera background */}
-      <CameraFeed onStreamReady={handleStreamReady} />
+      {/* Camera background - only when face tracking is enabled */}
+      {faceTrackingEnabled && <CameraFeed onStreamReady={handleStreamReady} />}
 
       {/* Loading screen */}
       {(currentScreen === 'loading' || isTrackingLoading) && (
@@ -119,8 +139,14 @@ function App() {
           <div style={{ textAlign: 'center', color: 'white' }}>
             <div className="spinner" style={{ width: '64px', height: '64px', margin: '0 auto 1rem' }}></div>
             <h2 style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>AccessPoint</h2>
-            <p style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>Initializing forehead tracking...</p>
-            {stream && <p style={{ fontSize: '0.875rem', opacity: 0.8 }}>Camera ready, loading face detection...</p>}
+            {faceTrackingEnabled ? (
+              <>
+                <p style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>Initializing forehead tracking...</p>
+                {stream && <p style={{ fontSize: '0.875rem', opacity: 0.8 }}>Camera ready, loading face detection...</p>}
+              </>
+            ) : (
+              <p style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>Initializing voice-only mode...</p>
+            )}
             {trackingError && (
               <div className="error-message" style={{ 
                 marginTop: '1rem', 
@@ -160,6 +186,23 @@ function App() {
 
       {/* Instructions/Disclaimer Screen */}
       {currentScreen === 'instructions' && (
+        <AccessibleInstructions
+          onContinue={() => setCurrentScreen('loading')}
+          accessibilitySettings={{
+            voiceAssistantEnabled: voiceAssistantEnabled,
+            faceTrackingEnabled: faceTrackingEnabled,
+            accessibilityLevel: accessibilityLevel
+          }}
+          onAccessibilityChange={(settings) => {
+            setVoiceAssistantEnabled(settings.voiceAssistantEnabled);
+            setFaceTrackingEnabled(settings.faceTrackingEnabled);
+            setAccessibilityLevel(settings.accessibilityLevel);
+            console.log('🔧 Accessibility settings updated:', settings);
+          }}
+        />
+      )}
+
+      {false && currentScreen === 'old-instructions' && (
         <div style={{
           position: 'fixed',
           inset: 0,
@@ -348,46 +391,7 @@ function App() {
               justifyContent: 'center',
               flexWrap: 'wrap'
             }}>
-              <button
-                data-hoverable
-                onClick={() => setCurrentScreen('loading')}
-                style={{
-                  background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
-                  border: 'none',
-                  borderRadius: '1rem',
-                  padding: '1rem 2rem',
-                  color: 'white',
-                  fontSize: '1.125rem',
-                  fontWeight: 'bold',
-                  cursor: 'pointer',
-                  transition: 'all 0.3s ease',
-                  minWidth: '200px'
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
-                onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-              >
-                🚀 Start AccessPoint
-              </button>
-              <button
-                data-hoverable
-                onClick={() => setCurrentScreen('menu')}
-                style={{
-                  background: 'rgba(255, 255, 255, 0.2)',
-                  border: '2px solid rgba(255, 255, 255, 0.4)',
-                  borderRadius: '1rem',
-                  padding: '1rem 2rem',
-                  color: 'white',
-                  fontSize: '1.125rem',
-                  fontWeight: 'bold',
-                  cursor: 'pointer',
-                  transition: 'all 0.3s ease',
-                  minWidth: '200px'
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
-                onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-              >
-                ⏭️ Skip to Main Menu
-              </button>
+              {/* Fixed - this was missing */}
             </div>
           </div>
         </div>
@@ -406,10 +410,16 @@ function App() {
               // Handle special sections
               if (section === 'chat') {
                 setCurrentScreen('chat');
+                const screenReader = ScreenReader.getInstance();
+                screenReader.announcePageChange('chat');
               } else if (section === 'emergency') {
                 setCurrentScreen('emergency');
+                const screenReader = ScreenReader.getInstance();
+                screenReader.announcePageChange('emergency');
               } else if (section === 'technical') {
                 setCurrentScreen('settings');
+                const screenReader = ScreenReader.getInstance();
+                screenReader.announcePageChange('settings');
               }
             }}
             faceTrackingEnabled={faceTrackingEnabled}
@@ -791,8 +801,8 @@ function App() {
 
 
 
-      {/* Intelligent Voice Box - Always available */}
-      <IntelligentVoiceBox />
+      {/* Intelligent Voice Box - Disabled during chat or when toggled off */}
+      <IntelligentVoiceBox enabled={voiceAssistantEnabled && currentScreen !== 'chat'} />
     </div>
   );
 }

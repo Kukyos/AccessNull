@@ -44,7 +44,7 @@ export class CognitiveAccessibilityService {
       useSimpleLanguage: false,
       enableTutorialMode: false,
       autoSave: true,
-      confirmActions: true,
+      confirmActions: false,
       timeoutWarnings: true,
       readAloud: false
     };
@@ -660,6 +660,18 @@ export class CognitiveAccessibilityService {
    * Handle destructive action with confirmation
    */
   private handleDestructiveAction(event: Event, target: HTMLElement) {
+    // Skip accessibility toggle buttons - they're not destructive
+    if (target.closest('[role="button"]') && (
+      target.textContent?.includes('Assistant') ||
+      target.textContent?.includes('Tracking') ||
+      target.textContent?.includes('Speech') ||
+      target.textContent?.includes('Voice') ||
+      target.textContent?.includes('Face') ||
+      target.textContent?.includes('Text-to-Speech')
+    )) {
+      return;
+    }
+
     const action = target.textContent?.trim() || 'this action';
     const confirmed = this.showConfirmation(
       'Confirm Action',

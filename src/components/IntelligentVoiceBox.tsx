@@ -91,6 +91,30 @@ class IntelligentCommandProcessor {
     
     // Define intent patterns with much more sophisticated matching
     const patterns = {
+      start: [
+        /^(start|begin|continue|enter|proceed)(\s+.*)?$/,
+        /\b(start|begin)\s+(the\s+)?(portal|application|app|menu)\b/,
+        /\bget\s+started\b/,
+        /\btake\s+me\s+(to\s+)?(main|portal|menu)\b/
+      ],
+      accessibility_toggle: [
+        // Voice Assistant commands
+        /\b(enable|turn\s+on|activate|start)\s+.*\b(voice|assistant|nullistant)\b/,
+        /\b(disable|turn\s+off|deactivate|stop)\s+.*\b(voice|assistant|nullistant)\b/,
+        
+        // Face Tracking commands  
+        /\b(enable|turn\s+on|activate|start)\s+.*\b(face|tracking|cursor|head)\b/,
+        /\b(disable|turn\s+off|deactivate|stop)\s+.*\b(face|tracking|cursor|head)\b/,
+        
+        // Text-to-Speech commands
+        /\b(enable|turn\s+on|activate|start)\s+.*\b(text|speech|narrator|reading|tts)\b/,
+        /\b(disable|turn\s+off|deactivate|stop)\s+.*\b(text|speech|narrator|reading|tts)\b/,
+        
+        // More natural commands
+        /\bturn\s+(on|off)\s+(voice|face|speech)/,
+        /\b(start|stop)\s+(listening|tracking|speaking)/,
+        /\b(enable|disable)\s+(narrator|assistant|cursor)/
+      ],
       emergency: [
         /\b(help|emergency|save|urgent|crisis|danger|sos|mayday)\b/,
         /need.*(help|doctor|hospital)/,
@@ -103,6 +127,13 @@ class IntelligentCommandProcessor {
         /contact.*(doctor|physician|emergency)/,
         /\b(call|phone|ring)\b(?!.*back)/  // Call but not "call back"
       ],
+      help: [
+        /^help$/,
+        /\bhelp\s+(me)?\b/,
+        /what\s+can\s+i\s+(say|do)/,
+        /available\s+commands/,
+        /\b(commands|instructions|guide)\b/
+      ],
       navigation: [
         // Explicit navigation commands
         /^(go\s+)?(back|return|exit|leave|quit|close)(\s+.*)?$/,
@@ -114,7 +145,7 @@ class IntelligentCommandProcessor {
         /\btake\s+me\s+(back|home)/
       ],
       action: [
-        /^(click|press|tap|select|choose|open|activate|start|launch)\s+/,
+        /^(click|press|tap|select|choose|open|activate|launch)\s+/,
         /\b(button|link|option)\b/
       ]
     };
@@ -133,6 +164,14 @@ class IntelligentCommandProcessor {
     
     // Set target words and urgency based on intent
     switch (intent) {
+      case 'start':
+        urgency = 'high';
+        targetWords = ['start', 'begin', 'continue', 'enter', 'proceed'];
+        break;
+      case 'accessibility_toggle':
+        urgency = 'medium';
+        targetWords = ['enable', 'disable', 'turn', 'voice', 'face', 'tracking', 'speech', 'narrator', 'assistant'];
+        break;
       case 'emergency':
         urgency = 'high';
         targetWords = ['emergency', '911', 'help', 'urgent', 'call', 'doctor'];
@@ -140,6 +179,10 @@ class IntelligentCommandProcessor {
       case 'contact':
         urgency = 'medium';
         targetWords = ['call', 'doctor', 'contact', 'phone', 'physician'];
+        break;
+      case 'help':
+        urgency = 'high';
+        targetWords = ['help', 'commands', 'instructions', 'guide'];
         break;
       case 'navigation':
         urgency = 'low';
@@ -172,6 +215,181 @@ class IntelligentCommandProcessor {
     return { intent, keywords: words, urgency, targetWords };
   }
 
+  private handleAccessibilityCommand(command: string, analysis: any): {
+    success: boolean;
+    action: string;
+    element?: HTMLElement;
+    confidence: number;
+    reasoning: string;
+  } {
+    const lowerCommand = command.toLowerCase();
+    
+    // Determine what accessibility feature and action
+    let feature = '';
+    let action = '';
+    let targetText = '';
+    
+    // Determine action (enable/disable)
+    if (lowerCommand.includes('enable') || lowerCommand.includes('turn on') || lowerCommand.includes('activate') || lowerCommand.includes('start')) {
+      action = 'enable';
+    } else if (lowerCommand.includes('disable') || lowerCommand.includes('turn off') || lowerCommand.includes('deactivate') || lowerCommand.includes('stop')) {
+      action = 'disable';
+    } else {
+      action = 'toggle'; // Default to toggle if unclear
+    }
+    
+    // Determine feature
+    if (lowerCommand.includes('voice') || lowerCommand.includes('assistant') || lowerCommand.includes('nullistant')) {
+      feature = 'voice';
+      targetText = 'voice assistant';
+    } else if (lowerCommand.includes('face') || lowerCommand.includes('tracking') || lowerCommand.includes('cursor') || lowerCommand.includes('head')) {
+      feature = 'face';
+      targetText = 'face tracking';
+    } else if (lowerCommand.includes('text') || lowerCommand.includes('speech') || lowerCommand.includes('narrator') || lowerCommand.includes('reading') || lowerCommand.includes('tts')) {
+      feature = 'speech';
+      targetText = 'text-to-speech';
+    }
+    
+    console.log('🎛️ Accessibility command:', { feature, action, targetText });
+    console.log('🔍 Command analysis:', { command: lowerCommand, feature, action });
+    
+    // Find the corresponding toggle button
+    const elements = this.getPageElements();
+    console.log('📋 Available elements:', elements.length);
+    let targetElement: HTMLElement | null = null;
+    
+    for (const elementInfo of elements) {
+      const elementText = elementInfo.text.toLowerCase();
+      console.log('🔍 Checking element:', elementText.slice(0, 50), 'for feature:', feature);
+      
+      // Look for accessibility toggle buttons
+      if (feature === 'voice' && 
+          (elementText.includes('voice assistant') || elementText.includes('nullistant'))) {
+        targetElement = elementInfo.element;
+        console.log('✅ Found voice assistant toggle:', elementText.slice(0, 50));
+        break;
+      } else if (feature === 'face' && 
+                (elementText.includes('face tracking') || elementText.includes('cursor'))) {
+        targetElement = elementInfo.element;
+        console.log('✅ Found face tracking toggle:', elementText.slice(0, 50));
+        break;
+      } else if (feature === 'speech' && 
+                (elementText.includes('text-to-speech') || elementText.includes('narrator'))) {
+        targetElement = elementInfo.element;
+        console.log('✅ Found text-to-speech toggle:', elementText.slice(0, 50));
+        break;
+      }
+    }
+    
+    if (!targetElement) {
+      console.warn('⚠️ Could not find target element for:', feature, 'action:', action);
+      console.log('📝 Available element texts:', elements.map(e => e.text.slice(0, 30)));
+      return {
+        success: false,
+        action: `Failed to find ${feature} toggle button`,
+        confidence: 50,
+        reasoning: `Could not locate ${targetText} button on page`
+      };
+    }
+
+    if (targetElement && feature) {
+      // Highlight and click the element
+      const originalStyle = targetElement.style.cssText;
+      targetElement.style.cssText += `
+        outline: 3px solid #22c55e !important;
+        outline-offset: 2px !important;
+        box-shadow: 0 0 10px #22c55e !important;
+      `;
+      
+      // Scroll into view
+      targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      
+      // Click after highlighting - use multiple methods for Chrome compatibility
+      setTimeout(() => {
+        targetElement.style.cssText = originalStyle;
+        
+        // Try multiple click methods for Chrome compatibility
+        try {
+          // Method 1: Standard click
+          targetElement.click();
+          
+          // Method 2: Dispatch mouse events (Chrome fallback)
+          const mouseDown = new MouseEvent('mousedown', { bubbles: true, cancelable: true });
+          const mouseUp = new MouseEvent('mouseup', { bubbles: true, cancelable: true });
+          const click = new MouseEvent('click', { bubbles: true, cancelable: true });
+          
+          targetElement.dispatchEvent(mouseDown);
+          targetElement.dispatchEvent(mouseUp);
+          targetElement.dispatchEvent(click);
+          
+          // Method 3: Trigger any onclick handlers directly
+          if ((targetElement as any).onclick) {
+            (targetElement as any).onclick();
+          }
+          
+          console.log('✅ Clicked accessibility toggle (multi-method):', targetElement);
+        } catch (error) {
+          console.error('❌ Failed to click element:', error);
+        }
+      }, 800);
+      
+      return {
+        success: true,
+        action: `${action}d ${targetText}`,
+        element: targetElement,
+        confidence: 95,
+        reasoning: `Accessibility command: ${action} ${feature} → found ${targetText} toggle`
+      };
+    } else {
+      return {
+        success: false,
+        action: `could not find ${targetText} toggle`,
+        confidence: 0,
+        reasoning: `Accessibility command recognized but no matching toggle found for "${feature}"`
+      };
+    }
+  }
+
+  private handleHelpCommand(): {
+    success: boolean;
+    action: string;
+    confidence: number;
+    reasoning: string;
+  } {
+    console.log('ℹ️ Help command triggered');
+    
+    // Determine current page context for specific help
+    let helpText = '';
+    
+    // Check if we're on the accessibility settings page
+    if (document.querySelector('[role="button"]') && 
+        (document.body.textContent?.includes('Voice Assistant') || 
+         document.body.textContent?.includes('Face Tracking'))) {
+      helpText = 'You are on the accessibility settings page. You can say: "enable voice assistant", "disable face tracking", "enable text to speech", or "enter university portal" to continue.';
+    }
+    // Check if we're in a chat interface
+    else if (document.querySelector('input[type="text"]') || document.querySelector('textarea')) {
+      helpText = 'You are in the chat interface. You can type your message or use voice commands like "back to menu" or "accessibility settings".';
+    }
+    // Default help
+    else {
+      helpText = 'Available commands include: "help" for this message, "back" to go back, accessibility commands like "enable voice assistant", or describe what you want to do.';
+    }
+    
+    // Speak the help text
+    const utterance = new SpeechSynthesisUtterance(helpText);
+    utterance.rate = 0.9;
+    utterance.volume = 0.8;
+    speechSynthesis.speak(utterance);
+    
+    return {
+      success: true,
+      action: 'provided help information',
+      confidence: 100,
+      reasoning: 'Help command executed successfully'
+    };
+  }
+
   public async processCommand(command: string): Promise<{
     success: boolean;
     action: string;
@@ -186,6 +404,16 @@ class IntelligentCommandProcessor {
     
     console.log('📊 Intent analysis:', analysis);
     console.log('🔍 Found elements:', elements.length);
+    
+    // Special handling for accessibility toggle commands
+    if (analysis.intent === 'accessibility_toggle') {
+      return this.handleAccessibilityCommand(command, analysis);
+    }
+    
+    // Special handling for help commands
+    if (analysis.intent === 'help') {
+      return this.handleHelpCommand();
+    }
     
       // Find the best matching element with improved scoring
       let bestMatch: { element: ElementInfo; score: number; reason: string } | null = null;
@@ -312,7 +540,7 @@ class IntelligentCommandProcessor {
       }
     }
     
-    if (bestMatch && bestMatch.score > 0.4) { // Increased threshold for better accuracy
+    if (bestMatch && bestMatch.score > 0.7) { // Much higher threshold to prevent random clicking
       const element = bestMatch.element.element;
       const confidence = Math.min(Math.round(bestMatch.score * 100), 100);
       
@@ -366,18 +594,57 @@ class IntelligentCommandProcessor {
   }
 }
 
-export const IntelligentVoiceBox: React.FC = () => {
+interface IntelligentVoiceBoxProps {
+  enabled?: boolean;
+}
+
+export const IntelligentVoiceBox: React.FC<IntelligentVoiceBoxProps> = ({ enabled = true }) => {
   const [isListening, setIsListening] = useState(false);
-  const [isWakeWordMode, setIsWakeWordMode] = useState(true); // Start in wake word mode by default
+  const [isWakeWordMode, setIsWakeWordMode] = useState(false); // Start in always awake mode
   const [spokenText, setSpokenText] = useState('');
-  const [status, setStatus] = useState('👂 Say "Hey Karunya" to activate...');
+  const [status, setStatus] = useState(enabled ? '🤖 Nullistant ready - speak your command...' : '🤖 Nullistant disabled');
   const [lastAction, setLastAction] = useState('');
   const [confidence, setConfidence] = useState(0);
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(true); // Start expanded
   
   const recognitionRef = useRef<any>(null);
   const wakeWordRecognitionRef = useRef<any>(null);
   const processorRef = useRef(new IntelligentCommandProcessor());
+  const restartTimeoutRef = useRef<number | null>(null);
+  const lastProcessedTimeRef = useRef<number>(0);
+
+  // Effect to handle enabled/disabled state
+  useEffect(() => {
+    if (!enabled) {
+      // Clear any pending timeouts
+      if (restartTimeoutRef.current) {
+        clearTimeout(restartTimeoutRef.current);
+        restartTimeoutRef.current = null;
+      }
+      
+      // Stop all recognition when disabled
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+      if (wakeWordRecognitionRef.current) {
+        wakeWordRecognitionRef.current.stop();
+      }
+      setIsListening(false);
+      setStatus('🤖 Nullistant disabled');
+      setSpokenText('');
+      console.log('🔇 Nullistant disabled via toggle');
+    } else {
+      // Re-enable when enabled prop becomes true
+      setStatus('🤖 Nullistant ready - speak your command...');
+      console.log('🔊 Nullistant enabled via toggle');
+      // Restart listening after a brief delay
+      setTimeout(() => {
+        if (enabled && !isListening) {
+          startCommandListening();
+        }
+      }, 1000);
+    }
+  }, [enabled]);
 
   // Wake word detection function
   const detectWakeWord = (text: string): boolean => {
@@ -394,12 +661,16 @@ export const IntelligentVoiceBox: React.FC = () => {
   };
 
   useEffect(() => {
-    if ('webkitSpeechRecognition' in window) {
+    // Check for both Chrome and Firefox speech recognition
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    
+    if (SpeechRecognition) {
       // Main command recognition
-      const recognition = new (window as any).webkitSpeechRecognition();
+      const recognition = new SpeechRecognition();
       recognition.continuous = false;
       recognition.interimResults = true;
       recognition.lang = 'en-US';
+      recognition.maxAlternatives = 1;
       
       let finalTranscript = '';
       
@@ -434,25 +705,51 @@ export const IntelligentVoiceBox: React.FC = () => {
           setStatus('🤖 Nullistant analyzing...');
           await processIntelligentCommand(finalTranscript.trim());
           
-          // Return to wake word mode after processing
+          // Return to always awake command listening after processing
           setTimeout(() => {
             if (!isListening) {
-              startWakeWordListening();
+              startCommandListening();
             }
           }, 2000);
         } else {
-          setStatus('No command detected');
-          startWakeWordListening();
+          // Add debouncing to prevent rapid alternation
+          const now = Date.now();
+          if (now - lastProcessedTimeRef.current < 3000) {
+            console.log('🚫 Debouncing: Too soon since last command, skipping restart');
+            setStatus('🤖 Nullistant ready - waiting...');
+            
+            // Clear existing timeout and set a longer one
+            if (restartTimeoutRef.current) {
+              clearTimeout(restartTimeoutRef.current);
+            }
+            restartTimeoutRef.current = setTimeout(() => {
+              if (enabled && !isListening) {
+                setStatus('🤖 Nullistant ready - speak your command...');
+                startCommandListening();
+              }
+            }, 4000);
+          } else {
+            setStatus('No command detected - ready for next command');
+            lastProcessedTimeRef.current = now;
+            
+            // Restart with a longer delay to prevent rapid cycling
+            setTimeout(() => {
+              if (enabled && !isListening) {
+                startCommandListening();
+              }
+            }, 3000);
+          }
         }
       };
       
       recognitionRef.current = recognition;
 
       // Wake word recognition (continuous)
-      const wakeWordRecognition = new (window as any).webkitSpeechRecognition();
+      const wakeWordRecognition = new SpeechRecognition();
       wakeWordRecognition.continuous = true;
       wakeWordRecognition.interimResults = true;
       wakeWordRecognition.lang = 'en-US';
+      wakeWordRecognition.maxAlternatives = 1;
       
       wakeWordRecognition.onresult = (event: any) => {
         let transcript = '';
@@ -487,10 +784,10 @@ export const IntelligentVoiceBox: React.FC = () => {
       
       wakeWordRecognitionRef.current = wakeWordRecognition;
       
-      // Start wake word listening by default after a short delay
+      // Start command listening immediately in "Always Awake" mode
       setTimeout(() => {
-        startWakeWordListening();
-      }, 500);
+        startCommandListening();
+      }, 1000);
     } else {
       setStatus('❌ Speech recognition not supported');
       console.error('Speech recognition not supported in this browser');
@@ -503,6 +800,10 @@ export const IntelligentVoiceBox: React.FC = () => {
       }
       if (wakeWordRecognitionRef.current) {
         wakeWordRecognitionRef.current.stop();
+      }
+      if (restartTimeoutRef.current) {
+        clearTimeout(restartTimeoutRef.current);
+        restartTimeoutRef.current = null;
       }
     };
   }, []);
@@ -517,11 +818,80 @@ export const IntelligentVoiceBox: React.FC = () => {
   };
 
   const startCommandListening = () => {
-    if (recognitionRef.current && !isListening) {
+    // Clear any pending restart timeout
+    if (restartTimeoutRef.current) {
+      clearTimeout(restartTimeoutRef.current);
+      restartTimeoutRef.current = null;
+    }
+
+    if (enabled && recognitionRef.current && !isListening) {
       setIsListening(true);
       setIsWakeWordMode(false);
       recognitionRef.current.start();
+      console.log('🎤 Nullistant started listening');
+    } else if (!enabled) {
+      console.log('🚫 Nullistant is disabled, cannot start listening');
     }
+  };
+
+  const handleUnknownCommand = (command: string) => {
+    console.log('🤷 Unknown command, providing TTS feedback:', command);
+    
+    // Use Speech Synthesis for immediate feedback
+    const utterance = new SpeechSynthesisUtterance("Sorry, I couldn't understand that command.");
+    utterance.rate = 0.9;
+    utterance.volume = 0.8;
+    
+    utterance.onend = () => {
+      // After saying sorry, re-announce the current page context
+      setTimeout(() => {
+        reAnnounceCurrentPage();
+      }, 500);
+    };
+    
+    speechSynthesis.speak(utterance);
+  };
+
+  const reAnnounceCurrentPage = () => {
+    // Determine current page context and re-announce helpful information
+    const currentUrl = window.location.pathname;
+    const pageTitle = document.title;
+    
+    // Check for specific page indicators
+    let pageContext = '';
+    let availableCommands = '';
+    
+    // Check if we're on the accessibility landing page
+    if (document.querySelector('[role="button"]') && 
+        (document.body.textContent?.includes('Voice Assistant') || 
+         document.body.textContent?.includes('Face Tracking'))) {
+      pageContext = 'accessibility settings page';
+      availableCommands = 'Try saying "enable voice assistant", "disable face tracking", "enable text to speech", or "enter university portal".';
+    }
+    // Check if we're in a chat or main interface
+    else if (document.querySelector('input[type="text"]') || document.querySelector('textarea')) {
+      pageContext = 'chat interface';
+      availableCommands = 'You can type your message or say "help" for assistance.';
+    }
+    // Check if we're on the main portal
+    else if (document.body.textContent?.includes('University') || document.body.textContent?.includes('Portal')) {
+      pageContext = 'university portal';
+      availableCommands = 'Try saying "start", "open chat", or "accessibility settings".';
+    }
+    // Default context
+    else {
+      pageContext = 'current page';
+      availableCommands = 'Try saying "help", "back", or describe what you want to do.';
+    }
+    
+    const reAnnouncement = `You are on the ${pageContext}. ${availableCommands}`;
+    
+    const utterance = new SpeechSynthesisUtterance(reAnnouncement);
+    utterance.rate = 0.9;
+    utterance.volume = 0.8;
+    speechSynthesis.speak(utterance);
+    
+    console.log('🔄 Re-announced page context:', reAnnouncement);
   };
 
   const processIntelligentCommand = async (command: string) => {
@@ -536,21 +906,26 @@ export const IntelligentVoiceBox: React.FC = () => {
       } else {
         setStatus(`❌ ${result.action}`);
         setLastAction(`Failed: ${result.reasoning}`);
+        
+        // Provide helpful TTS feedback for unknown commands
+        handleUnknownCommand(command);
       }
     } catch (error) {
       console.error('Command processing error:', error);
       setStatus('❌ AI processing failed');
+      
+      // Also handle errors with TTS feedback
+      const utterance = new SpeechSynthesisUtterance("Sorry, I encountered an error processing your command.");
+      utterance.rate = 0.9;
+      utterance.volume = 0.8;
+      speechSynthesis.speak(utterance);
     }
   };
 
   const toggleListening = () => {
     if (isListening) {
       recognitionRef.current?.stop();
-      startWakeWordListening();
-    } else if (isWakeWordMode) {
-      wakeWordRecognitionRef.current?.stop();
-      setIsWakeWordMode(false);
-      setStatus('Wake word listening stopped');
+      setStatus('🔇 Always Awake mode paused');
     } else {
       startCommandListening();
     }
@@ -590,11 +965,9 @@ export const IntelligentVoiceBox: React.FC = () => {
             cursor: 'pointer',
             userSelect: 'none',
             padding: '8px 12px',
-            backgroundColor: isWakeWordMode ? 'rgba(59, 130, 246, 0.2)' : 
-                            isListening ? 'rgba(239, 68, 68, 0.3)' : 'rgba(239, 68, 68, 0.2)',
+            backgroundColor: isListening ? 'rgba(34, 197, 94, 0.3)' : 'rgba(34, 197, 94, 0.2)',
             borderRadius: '12px',
-            border: isWakeWordMode ? '1px solid rgba(59, 130, 246, 0.4)' : 
-                   '1px solid rgba(239, 68, 68, 0.4)',
+            border: '1px solid rgba(34, 197, 94, 0.4)',
             marginBottom: isExpanded ? '15px' : '0',
             minHeight: '40px',
             transition: 'all 0.3s ease'
@@ -603,23 +976,23 @@ export const IntelligentVoiceBox: React.FC = () => {
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ 
-              color: isWakeWordMode ? '#3b82f6' : '#ef4444', 
+              color: '#22c55e', 
               fontSize: '16px' 
             }}>
-              {isWakeWordMode ? '👂' : '🤖'}
+              🤖
             </span>
             <span style={{ 
               fontWeight: 'bold', 
               fontSize: '13px',
               color: 'white'
             }}>
-              {isWakeWordMode ? 'Nullistant (Wake Mode)' : 'Nullistant'}
+              Nullistant (Always Awake)
             </span>
-            {(isListening || isWakeWordMode) && (
+            {isListening && (
               <div style={{ 
                 width: '6px', 
                 height: '6px', 
-                backgroundColor: isWakeWordMode ? '#3b82f6' : '#ef4444', 
+                backgroundColor: '#22c55e', 
                 borderRadius: '50%',
                 animation: 'pulse 1s infinite'
               }} />
@@ -679,9 +1052,7 @@ export const IntelligentVoiceBox: React.FC = () => {
             }}
             data-hoverable="true"
           >
-            {isListening ? '🔴 Stop Listening' : 
-             isWakeWordMode ? '👂 Wake Mode Active' : 
-             '🎤 Start Wake Mode'}
+            {isListening ? '🔴 Pause Always Awake' : '🎤 Resume Always Awake'}
           </button>
           
           {/* Speech Display */}
@@ -745,8 +1116,7 @@ export const IntelligentVoiceBox: React.FC = () => {
             opacity: 0.6,
             lineHeight: 1.3
           }}>
-            <strong>Wake words:</strong> "Hey Karunya", "Karunya", "Nullistant"<br/>
-            <strong>Commands:</strong> "Go to academics", "Show circulars", "Help"
+            <strong>Always Awake Mode:</strong> Just speak naturally - no wake words needed!
           </div>
           </div>
         )}

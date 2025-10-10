@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import type { Point2D, FaceLandmarks, CalibrationSettings, BlinkData } from '../../types';
+import { ScreenReader } from '../../utils/screenReader';
 
 interface ForeheadCursorProps {
   landmarks: FaceLandmarks | null;
@@ -18,13 +19,109 @@ export const ForeheadCursor: React.FC<ForeheadCursorProps> = ({
   const [dwellProgress, setDwellProgress] = useState(0);
   const [hoveredElement, setHoveredElement] = useState<HTMLElement | null>(null);
 
+  // Hide default cursor when face tracking is active
+  useEffect(() => {
+    // Temporarily disable cursor hiding for debugging
+    // document.body.classList.add('cursor-hidden');
+    return () => {
+      document.body.classList.remove('cursor-hidden');
+      // Cleanup any face-hovered class when component unmounts
+      if (hoveredElement) {
+        hoveredElement.classList.remove('face-hovered');
+      }
+    };
+  }, [hoveredElement]);
+
   const dwellTimerRef = useRef<number | null>(null);
   const lastUpdateRef = useRef<number>(0);
   const lastBlinkRef = useRef<boolean>(false);
   const blinkCooldownRef = useRef<boolean>(false);
+  const lastSpokenElementRef = useRef<HTMLElement | null>(null);
   
   // Smoothing buffer like ForeHeadDetector (deque with maxlen=5)
   const positionBufferRef = useRef<Array<{ x: number, y: number }>>([]);
+
+  // TTS function for hover feedback
+  const speakElementText = (element: HTMLElement) => {
+    const screenReader = ScreenReader.getInstance();
+    
+    // Don't interrupt intro announcement
+    if (screenReader.isIntroActive()) {
+      console.log('🔊 Skipping cursor hover TTS - intro still active');
+      return;
+    }
+
+    // Don't repeat the same element
+    if (lastSpokenElementRef.current === element) return;
+    lastSpokenElementRef.current = element;
+
+    // Get meaningful text from element
+    let textToSpeak = '';
+    
+    // Try different text sources in order of preference
+    const ariaLabel = element.getAttribute('aria-label');
+    const title = element.getAttribute('title');
+    const textContent = element.textContent?.trim();
+    const placeholder = element.getAttribute('placeholder');
+    const value = (element as HTMLInputElement).value;
+    
+    // Smart text extraction with context
+    if (ariaLabel) {
+      textToSpeak = ariaLabel;
+    } else if (title) {
+      textToSpeak = title;
+    } else if (textContent && textContent.length > 0 && textContent.length < 150) {
+      // Add context for better understanding
+      const tagName = element.tagName.toLowerCase();
+      if (tagName === 'button') {
+        textToSpeak = `${textContent} button`;
+      } else if (tagName === 'a') {
+        textToSpeak = `${textContent} link`;
+      } else if (element.getAttribute('role') === 'button') {
+        textToSpeak = `${textContent} button`;
+      } else if (element.hasAttribute('data-hoverable')) {
+        textToSpeak = `${textContent} - clickable`;
+      } else {
+        textToSpeak = textContent;
+      }
+    } else if (placeholder) {
+      textToSpeak = `Input field for ${placeholder}`;
+    } else if (value) {
+      textToSpeak = `Input field with value ${value}`;
+    } else {
+      // Smart fallback based on context
+      const tagName = element.tagName.toLowerCase();
+      const className = element.className;
+      const id = element.id;
+      
+      // Check for specific UI patterns
+      if (className.includes('sidebar') || id.includes('sidebar')) {
+        textToSpeak = 'Sidebar navigation';
+      } else if (className.includes('menu') || id.includes('menu')) {
+        textToSpeak = 'Menu item';
+      } else if (className.includes('close') || textContent?.includes('×') || textContent?.includes('✕')) {
+        textToSpeak = 'Close button';
+      } else if (className.includes('back') || textContent?.includes('←')) {
+        textToSpeak = 'Back button';
+      } else if (tagName === 'button') {
+        textToSpeak = 'Button';
+      } else if (tagName === 'input') {
+        textToSpeak = 'Input field';
+      } else if (tagName === 'a') {
+        textToSpeak = 'Link';
+      } else {
+        // Don't announce generic "clickable element" - skip it
+        return;
+      }
+    }
+
+    if (textToSpeak && textToSpeak !== 'Clickable element') {
+      console.log('🔊 TTS: Speaking hover text:', textToSpeak);
+      
+      // Use ScreenReader for consistent speech management
+      screenReader.speak(textToSpeak, { rate: 1.3, volume: 0.6, priority: 'low' });
+    }
+  };
 
   // Map forehead position to screen coordinates
   useEffect(() => {
@@ -216,6 +313,19 @@ export const ForeheadCursor: React.FC<ForeheadCursorProps> = ({
       setHoveredElement(clickableElement);
       setDwellProgress(0);
       
+      // Speak the element text for accessibility
+      speakElementText(clickableElement);
+      
+      // Also try the screen reader for better context
+      const screenReader = ScreenReader.getInstance();
+      const smartDescription = screenReader.announceElementDetails(clickableElement);
+      const elementText = clickableElement.textContent?.trim();
+      if (smartDescription && smartDescription !== elementText) {
+        setTimeout(() => {
+          screenReader.speak(smartDescription, { rate: 1.3, volume: 0.6 });
+        }, 800); // Slight delay after the first announcement
+      }
+      
       // Start dwell timer
       const startTime = Date.now();
       const updateDwell = () => {
@@ -246,6 +356,7 @@ export const ForeheadCursor: React.FC<ForeheadCursorProps> = ({
           }
           setDwellProgress(0);
           setHoveredElement(null);
+          lastSpokenElementRef.current = null; // Clear spoken element reference
         } else {
           dwellTimerRef.current = requestAnimationFrame(updateDwell);
         }
@@ -260,6 +371,7 @@ export const ForeheadCursor: React.FC<ForeheadCursorProps> = ({
       }
       setHoveredElement(null);
       setDwellProgress(0);
+      lastSpokenElementRef.current = null; // Clear spoken element reference
     } else if (!clickableElement && elementsAtPoint.length > 0) {
       // Debug: Show what elements are under cursor but not clickable
       const topElements = elementsAtPoint.slice(0, 3).map(el => ({

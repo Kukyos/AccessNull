@@ -19,13 +19,13 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ onClose }) => {
     {
       id: '1',
       role: 'assistant',
-      content: 'Hello! I\'m NullChat, your Karunya University AI assistant. I can help you with courses, faculty, admissions, facilities, and campus services. How can I assist you today?',
+      content: 'Hello! I\'m NullChat, your Karunya University AI assistant. I can help you with courses, faculty, admissions, facilities, and campus services. How can I assist you today? The microphone is ready - just start speaking!',
       timestamp: new Date(),
     },
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
+  const [isRecording, setIsRecording] = useState(false); // Start with recording disabled
   const [language, setLanguage] = useState<'en' | 'hi'>('en');
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -37,27 +37,135 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ onClose }) => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // Auto-start recording when chat opens and announce instructions
+  useEffect(() => {
+    // First, announce the chat instructions with TTS
+    const announceInstructions = () => {
+      const instructions = `
+        Welcome to NullChat, your university AI assistant. 
+        Nullistant voice assistant has been temporarily disabled to avoid microphone conflicts.
+        
+        You can now speak directly to the chat assistant. Your voice will be automatically transcribed and sent.
+        After each response, the microphone will reactivate for your next question.
+        
+        To exit the chat and return to the main portal, say "exit", "close", or click the close button.
+        This will re-enable Nullistant voice assistant for general navigation.
+        
+        The microphone is now ready - start speaking your question!
+      `;
+      
+      // Use browser speech synthesis for the announcement
+      speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(instructions);
+      utterance.rate = 0.9;
+      utterance.volume = 0.8;
+      utterance.pitch = 1.0;
+      
+      utterance.onend = () => {
+        console.log('📢 Chat instructions announced, recording ready for manual activation');
+        // Don't auto-start recording - let user click the mic button
+      };
+      
+      speechSynthesis.speak(utterance);
+    };
+
+    const startAutoRecording = () => {
+      if (!speechRecognizerRef.current.isSupported()) {
+        setIsRecording(false);
+        return;
+      }
+
+      // Set up callbacks for auto-recording
+      speechRecognizerRef.current.setOnTranscript((text: string) => {
+        console.log('✅ Auto-transcription:', text);
+        setInput(text);
+        
+        // Auto-send the transcribed text after a brief pause
+        setTimeout(() => {
+          if (text.trim() && !isLoading) {
+            // Trigger send automatically
+            handleAutoSend(text.trim());
+          }
+        }, 2000);
+      });
+
+      speechRecognizerRef.current.setOnError((error: string) => {
+        console.error('❌ Auto speech recognition error:', error);
+        setIsRecording(false);
+        
+        // Try to restart after error (like Nullistant)
+        if (error !== 'not-allowed') {
+          setTimeout(() => {
+            if (!isLoading) {
+              startAutoRecording();
+            }
+          }, 2000);
+        }
+      });
+
+      // Start recording
+      try {
+        speechRecognizerRef.current.startRecording(language);
+        setIsRecording(true);
+        console.log('🎤 NullChat auto-recording started (Always Awake mode)');
+      } catch (error) {
+        console.error('Failed to start auto-recording:', error);
+        setIsRecording(false);
+      }
+    };
+
+    // Start with TTS announcement, then auto-recording
+    const timer = setTimeout(() => {
+      announceInstructions();
+    }, 1000);
+
+    return () => {
+      clearTimeout(timer);
+      // Stop recording when component unmounts
+      if (speechRecognizerRef.current) {
+        speechRecognizerRef.current.stopRecording();
+      }
+    };
+  }, []); // Empty dependency array - only run on mount
+
+  const handleAutoSend = async (text: string) => {
+    if (!text.trim() || isLoading) return;
+    
+    // Check for exit commands
+    const exitCommands = ['exit', 'close', 'quit', 'go back', 'back', 'return'];
+    if (exitCommands.some(cmd => text.toLowerCase().includes(cmd))) {
+      onClose();
+      return;
+    }
+
+    await processChatMessage(text.trim());
+  };
+
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
+    await processChatMessage(input.trim());
+  };
 
+  const processChatMessage = async (messageText: string) => {
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
-      content: input.trim(),
+      content: messageText,
       timestamp: new Date(),
     };
 
     setMessages(prev => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
+    setIsRecording(false); // Stop recording while processing
 
     try {
       // Detect language from user input
-      const detectedLang = detectLanguage(input);
+      const detectedLang = detectLanguage(messageText);
       setLanguage(detectedLang);
 
       // Get AI response
-      const response = await sendChatMessage(input, detectedLang);
+      const response = await sendChatMessage(messageText, detectedLang);
 
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -68,12 +176,25 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ onClose }) => {
 
       setMessages(prev => [...prev, assistantMessage]);
 
-      // Speak the response
-      const ttsResult = await textToSpeech(response.answer, { language: `${detectedLang}-IN` as 'en-IN' | 'hi-IN' });
-      if (ttsResult.audioUrl) {
-        const audio = new Audio(ttsResult.audioUrl);
-        audio.play();
-      }
+      // Speak the response using browser TTS
+      speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(response.answer);
+      utterance.rate = 0.9;
+      utterance.volume = 0.8;
+      utterance.lang = detectedLang === 'hi' ? 'hi-IN' : 'en-IN';
+      
+      utterance.onend = () => {
+        console.log('📢 Response TTS complete, restarting recording');
+        // Restart recording after TTS is complete
+        setTimeout(() => {
+          if (!isLoading) {
+            restartAutoRecording();
+          }
+        }, 1000);
+      };
+      
+      speechSynthesis.speak(utterance);
+
     } catch (error) {
       console.error('Chat error:', error);
       const errorMessage: Message = {
@@ -83,8 +204,26 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ onClose }) => {
         timestamp: new Date(),
       };
       setMessages(prev => [...prev, errorMessage]);
+      
+      // Restart recording even after error
+      setTimeout(() => {
+        restartAutoRecording();
+      }, 2000);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const restartAutoRecording = () => {
+    if (speechRecognizerRef.current.isSupported() && !isRecording) {
+      try {
+        speechRecognizerRef.current.startRecording(language);
+        setIsRecording(true);
+        console.log('🎤 NullChat recording restarted after response');
+      } catch (error) {
+        console.error('Failed to restart recording:', error);
+        setIsRecording(false);
+      }
     }
   };
 
@@ -352,7 +491,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ onClose }) => {
           rows={2}
         />
         
-        {/* Voice Button */}
+        {/* Voice Button - Always Awake Mode */}
         <button
           data-hoverable
           onClick={handleVoiceInput}
@@ -360,9 +499,10 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ onClose }) => {
           style={{
             padding: '1.5rem 2rem',
             borderRadius: '12px',
-            border: 'none',
-            backgroundColor: isRecording ? '#ea580c' : '#F8F9FA',
-            color: isRecording ? 'white' : '#ea580c',
+            border: '3px solid',
+            borderColor: isRecording ? '#22c55e' : '#ea580c',
+            backgroundColor: isRecording ? 'rgba(34, 197, 94, 0.2)' : 'rgba(234, 88, 12, 0.1)',
+            color: isRecording ? '#22c55e' : '#ea580c',
             cursor: isLoading ? 'not-allowed' : 'pointer',
             fontSize: '2.5rem',
             transition: 'all 0.2s',
@@ -372,9 +512,23 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ onClose }) => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            position: 'relative',
           }}
+          title={isRecording ? 'Voice Always Awake - Click to pause' : 'Click to resume voice input'}
         >
           🎤
+          {isRecording && (
+            <div style={{
+              position: 'absolute',
+              bottom: '4px',
+              right: '4px',
+              width: '12px',
+              height: '12px',
+              backgroundColor: '#22c55e',
+              borderRadius: '50%',
+              animation: 'pulse 1s infinite'
+            }} />
+          )}
         </button>
 
         {/* Send Button */}

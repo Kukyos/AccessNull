@@ -114,8 +114,10 @@ export async function sendChatMessage(
   language: 'en' | 'hi' = 'en'
 ): Promise<ChatResponse> {
   try {
-    // Try localStorage first, then fall back to environment variable
-    const apiKey = localStorage.getItem('user_groq_api_key') || import.meta.env.VITE_GROQ_API_KEY;
+    // Try localStorage first, then fall back to environment variable, then default API key
+    const apiKey = localStorage.getItem('user_groq_api_key') || 
+                   import.meta.env.VITE_GROQ_API_KEY || 
+                   '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';
     
     if (!apiKey || apiKey === 'your_groq_api_key_here') {
       return {
@@ -136,16 +138,19 @@ export async function sendChatMessage(
       { role: 'user', content: message }
     ];
 
+    console.log('🔗 Making API call to Groq with key:', apiKey.substring(0, 10) + '...');
+    
     const response = await fetch(GROQ_API_URL, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
+        'Accept': 'application/json',
       },
       body: JSON.stringify({
         model: GROQ_MODEL,
         messages,
-        max_tokens: 300,
+        max_tokens: 500,
         temperature: 0.7,
         top_p: 0.9,
         stream: false,
@@ -154,12 +159,32 @@ export async function sendChatMessage(
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Groq API error:', response.status, errorText);
-      return {
-        answer: `Sorry, I'm having trouble connecting right now. Please try again later.`,
-        confidence: 0,
-        error: `API error: ${response.status}`
-      };
+      console.error('❌ Groq API error:', {
+        status: response.status,
+        statusText: response.statusText, 
+        error: errorText,
+        apiKey: apiKey.substring(0, 10) + '...'
+      });
+      
+      if (response.status === 401) {
+        return {
+          answer: `🔑 **API Key Error!**\n\nThe Groq API key appears to be invalid or expired.\n\nPlease:\n1. Check if the API key is correct\n2. Verify it has proper permissions\n3. Try generating a new key at https://console.groq.com/keys`,
+          confidence: 0,
+          error: `Unauthorized: Invalid API key`
+        };
+      } else if (response.status === 429) {
+        return {
+          answer: `⏰ **Rate Limit Exceeded**\n\nToo many requests. Please wait a moment and try again.`,
+          confidence: 0,
+          error: `Rate limited`
+        };
+      } else {
+        return {
+          answer: `❌ **Connection Error**\n\nStatus: ${response.status}\nError: ${errorText}\n\nPlease try again in a moment.`,
+          confidence: 0,
+          error: `API error: ${response.status}`
+        };
+      }
     }
 
     const data = await response.json();
@@ -170,9 +195,18 @@ export async function sendChatMessage(
       confidence: 0.9,
     };
   } catch (error) {
-    console.error('Chat service error:', error);
+    console.error('❌ Chat service error:', error);
+    
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      return {
+        answer: `🌐 **Network Connection Error**\n\nCannot reach Groq API servers. This could be due to:\n\n• Internet connection issues\n• CORS policy blocking the request\n• Firewall or network restrictions\n\nPlease check your internet connection and try again.`,
+        confidence: 0,
+        error: 'Network/CORS error'
+      };
+    }
+    
     return {
-      answer: 'Sorry, an error occurred while processing your message. Please try again.',
+      answer: `⚠️ **Unexpected Error**\n\nError: ${error instanceof Error ? error.message : 'Unknown error'}\n\nPlease try again or refresh the page.`,
       confidence: 0,
       error: error instanceof Error ? error.message : 'Unknown error'
     };
