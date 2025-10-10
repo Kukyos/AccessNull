@@ -114,11 +114,9 @@ export async function sendChatMessage(
   language: 'en' | 'hi' = 'en'
 ): Promise<ChatResponse> {
   try {
-    // Try localStorage first, then fall back to environment variable, then default API key
-    const apiKey = localStorage.getItem('user_groq_api_key') || 
-                   import.meta.env.VITE_GROQ_API_KEY ;
-    
-    if (!apiKey || apiKey === 'your_groq_api_key_here') {
+    // Only use localStorage for API key
+    const apiKey = localStorage.getItem('user_groq_api_key');
+    if (!apiKey) {
       return {
         answer: '🔑 **NullChat needs configuration!**\n\n' +
                 '**To enable chat:**\n' +
