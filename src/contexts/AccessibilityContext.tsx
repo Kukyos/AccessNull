@@ -1,4 +1,6 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import type { ReactNode } from 'react';
+
 
 export interface AccessibilitySettings {
   // Core accessibility modes
@@ -26,7 +28,7 @@ export interface AccessibilityContextType {
   updateSettings: (updates: Partial<AccessibilitySettings>) => void;
   
   // TTS functions
-  speak: (text: string, options?: SpeechSynthesisUtteranceOptions) => void;
+  speak: (text: string, options?: Partial<SpeechSynthesisUtterance>) => void;
   stopSpeaking: () => void;
   
   // Announcement functions
@@ -132,7 +134,7 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({ ch
     setSettings(prev => ({ ...prev, ...updates }));
   };
 
-  const speak = (text: string, options: Partial<SpeechSynthesisUtteranceOptions> = {}) => {
+  const speak = (text: string, options: Partial<SpeechSynthesisUtterance> = {}) => {
     if (!settings.textToSpeechEnabled || !text.trim()) return;
 
     // Stop any current speech

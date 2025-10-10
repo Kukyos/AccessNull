@@ -202,7 +202,7 @@ function App() {
         />
       )}
 
-      {false && currentScreen === 'old-instructions' && (
+      {false  && (
         <div style={{
           position: 'fixed',
           inset: 0,
