@@ -41,14 +41,11 @@ In production the camera API requires HTTPS; `localhost` is exempt.
 | Calibrate | Trace an on-screen pattern with your forehead — sets per-user sensitivity |
 | Speak / listen | Web Speech API for STT and TTS |
 
-Dwell-clicking is the default because blink detection has a higher false-positive
-rate under variable lighting. Both are available at runtime.
-
 ## What's in it
 
 - **Forehead cursor** — webcam head tracking, no hardware
 - **Dwell + blink clicking** — two independent selection methods
-- **Pattern calibration** — personalised sensitivity, doubles as a soft unlock
+- **Pattern calibration** — secure, personalised setup via forehead-traced patterns
 - **Multilingual assistant** — voice-capable chatbot for medical and accessibility queries
 - **Accessible navigation** — prescriptions, campus accessibility info, assistance requests
 - **High-contrast healthcare UI** — tuned for clinical environments
@@ -81,8 +78,7 @@ centres.
 
 ## Contributing
 
-Issues and PRs welcome — particularly around tracking robustness in low light
-and additional assistant languages.
+Issues and PRs welcome.
 
 ## License
 
