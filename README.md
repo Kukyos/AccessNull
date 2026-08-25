@@ -1,178 +1,89 @@
-# AccessPoint 🎯# React + TypeScript + Vite
+# AccessPoint 🎯
 
+**A forehead-controlled web interface for people with limb disabilities.**
 
+AccessPoint lets someone navigate a full web application — menus, forms, a chat
+assistant — using nothing but head movement tracked through a standard webcam.
+No special hardware, no installed drivers. It runs in the browser.
 
-**Forehead-Controlled Accessible Interface for Amputees**This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Built for the *AI for Disability* hackathon category.
 
-
-
-A revolutionary web application that enables individuals with limb disabilities to interact with digital interfaces using only their head movements. Built for the AI for Disability hackathon category.Currently, two official plugins are available:
-
-
-
-## 🌟 Features- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
-
-- **Forehead Cursor Control**: Navigate using head movements tracked via webcam
-
-- **Dwell-Time Clicking**: Hover for 2 seconds to click (with visual progress indicator)## React Compiler
-
-- **Blink Detection**: Alternative clicking method using eye blinks
-
-- **Pattern Calibration**: Secure and personalized setup with forehead-traced patternsThe React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-- **Multilingual Medical Assistant**: AI chatbot with voice support for medical and accessibility queries
-
-- **Accessible Navigation**: View prescriptions, campus accessibility info, and request assistance## Expanding the ESLint configuration
-
-- **Healthcare UI**: Clean white and red color scheme optimized for medical environments
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-## 🚀 Quick Start
-
-```js
-
-### Prerequisitesexport default defineConfig([
-
-  globalIgnores(['dist']),
-
-- Node.js 20.19.0+ or 22.12.0+  {
-
-- npm 10.0.0+    files: ['**/*.{ts,tsx}'],
-
-- Webcam    extends: [
-
-- Modern browser (Chrome/Edge recommended)      // Other configs...
-
-
-
-### Installation      // Remove tseslint.configs.recommended and replace with this
-
-      tseslint.configs.recommendedTypeChecked,
-
-```bash      // Alternatively, use this for stricter rules
-
-# Clone the repository      tseslint.configs.strictTypeChecked,
-
-git clone <your-repo-url>      // Optionally, add this for stylistic rules
-
-cd accesspoint      tseslint.configs.stylisticTypeChecked,
-
-
-
-# Install dependencies      // Other configs...
-
-npm install    ],
-
-    languageOptions: {
-
-# Start development server      parserOptions: {
-
-npm run dev        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-
-```        tsconfigRootDir: import.meta.dirname,
-
-      },
-
-Visit `http://localhost:5173` and grant camera permissions when prompted.      // other options...
-
-    },
-
-**For detailed setup instructions, see [SETUP.md](./SETUP.md)**  },
-
-])
-
-## 🎯 Use Cases```
-
-
-
-- **Amputees**: Control digital interfaces without traditional input devicesYou can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-- **Medical Facilities**: Accessible patient interaction systems
-
-- **Campus Accessibility**: Navigate university resources hands-free```js
-
-- **Rehabilitation Centers**: Assistive technology for patients// eslint.config.js
-
-import reactX from 'eslint-plugin-react-x'
-
-## 🛠️ Technology Stackimport reactDom from 'eslint-plugin-react-dom'
-
-
-
-- **Frontend**: React 19 + TypeScript + Viteexport default defineConfig([
-
-- **Face Tracking**: MediaPipe Face Mesh (Google)  globalIgnores(['dist']),
-
-- **Styling**: Tailwind CSS  {
-
-- **AI Assistant**: Custom multilingual chatbot    files: ['**/*.{ts,tsx}'],
-
-- **Voice**: Web Speech API (TTS/STT)    extends: [
-
-      // Other configs...
-
-## 📁 Project Structure      // Enable lint rules for React
-
-      reactX.configs['recommended-typescript'],
-
-```      // Enable lint rules for React DOM
-
-accesspoint/      reactDom.configs.recommended,
-
-├── src/    ],
-
-│   ├── components/       # UI components    languageOptions: {
-
-│   │   ├── Camera/       # Webcam feed      parserOptions: {
-
-│   │   ├── Cursor/       # Forehead cursor        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-
-│   │   ├── Menu/         # Main navigation        tsconfigRootDir: import.meta.dirname,
-
-│   │   └── Chat/         # AI assistant      },
-
-│   ├── hooks/            # Custom React hooks      // other options...
-
-│   ├── utils/            # Helper functions    },
-
-│   ├── types/            # TypeScript definitions  },
-
-│   └── App.tsx           # Main application])
-
-├── public/               # Static assets```
-
-└── SETUP.md              # Detailed setup guide
-```
-
-## 🎮 How to Use
-
-1. **Grant Camera Permission**: Allow browser access to webcam
-2. **Calibration**: Trace the pattern with your forehead to calibrate sensitivity
-3. **Navigate**: Move your head to control the cursor
-4. **Click**: Hover over buttons for 2 seconds or blink to click
-5. **Interact**: Access medical info, chat with AI assistant, explore campus accessibility
-
-## 🧪 Demo Mode
-
-For hackathon presentations without camera:
-- Press `D` to enable demo mode with mouse control
-- All features remain functional
-
-## 🤝 Contributing
-
-This project was built for the AI for Disability hackathon. Contributions are welcome!
-
-## 📄 License
-
-MIT
-
-## 👥 Team
-
-Built with ❤️ for making technology accessible to everyone
+![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)
+![MediaPipe](https://img.shields.io/badge/MediaPipe-FaceMesh-00A67E)
+![License](https://img.shields.io/badge/License-MIT-yellow)
 
 ---
 
-**Note**: This project requires HTTPS in production due to camera API requirements. Use `localhost` for development.
+## Run it
+
+```bash
+git clone https://github.com/Kukyos/AccessNull.git
+cd AccessNull
+npm install && npm run dev
+```
+
+Open `http://localhost:5173` and grant camera access when prompted.
+
+**No webcam?** Press `D` for demo mode — every feature works with the mouse.
+
+Requires Node.js 20.19+ (or 22.12+) and a Chromium-based browser.
+In production the camera API requires HTTPS; `localhost` is exempt.
+
+---
+
+## How the interaction works
+
+| Action | Mechanism |
+|---|---|
+| Move cursor | MediaPipe Face Mesh tracks the forehead landmark; position maps to screen coordinates |
+| Click | Dwell for 2s over a target (radial progress indicator), **or** blink |
+| Calibrate | Trace an on-screen pattern with your forehead — sets per-user sensitivity |
+| Speak / listen | Web Speech API for STT and TTS |
+
+Dwell-clicking is the default because blink detection has a higher false-positive
+rate under variable lighting. Both are available at runtime.
+
+## What's in it
+
+- **Forehead cursor** — webcam head tracking, no hardware
+- **Dwell + blink clicking** — two independent selection methods
+- **Pattern calibration** — personalised sensitivity, doubles as a soft unlock
+- **Multilingual assistant** — voice-capable chatbot for medical and accessibility queries
+- **Accessible navigation** — prescriptions, campus accessibility info, assistance requests
+- **High-contrast healthcare UI** — tuned for clinical environments
+
+## Stack
+
+React 19 · TypeScript · Vite · MediaPipe Face Mesh · Tailwind CSS · Web Speech API
+
+## Layout
+
+```
+src/
+├── components/
+│   ├── Camera/     webcam feed + frame pipeline
+│   ├── Cursor/     forehead-driven pointer & dwell indicator
+│   ├── Menu/       primary navigation
+│   └── Chat/       assistant UI
+├── hooks/          tracking, calibration, speech
+├── utils/          landmark smoothing, coordinate mapping
+└── types/
+```
+
+See [SETUP.md](./SETUP.md) for detailed setup.
+
+## Who it's for
+
+Amputees and people with limited limb mobility; medical facilities needing
+hands-free patient interaction; campus accessibility services; rehabilitation
+centres.
+
+## Contributing
+
+Issues and PRs welcome — particularly around tracking robustness in low light
+and additional assistant languages.
+
+## License
+
+MIT — see [LICENSE](./LICENSE).
