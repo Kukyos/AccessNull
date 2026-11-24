@@ -4,7 +4,7 @@ import { run, activeTab, send, settle, matchLabel, needsConfirm, isEcho, STOP } 
 
 const LANGS = { 'en-IN': 'English', 'hi-IN': 'Hindi', 'ta-IN': 'Tamil', 'kn-IN': 'Kannada', 'te-IN': 'Telugu' };
 const YES = /\b(yes|yeah|yep|yup|sure|go ahead|go for it|do it|okay|ok|confirm|proceed|haan|ha|aamaam|houdu)\b/i;
-const NO = /\b(no|nope|don'?t|cancel|wait|nahi|nahin|illa|beda)\b/i;
+const NO = /\b(no|nope|not yet|not now|hold on|later|don'?t|cancel|wait|nahi|nahin|illa|beda)\b/i;
 
 let running = false, abort = false, speaking = 0, numbersOn = false;
 let lastSaid = '', lastSpokeAt = 0; // echo guard: the mic hears our own voice
@@ -90,7 +90,7 @@ function answer(value) {
 
 // ---------- what the user said ----------
 async function heard(text) {
-  const t = text.toLowerCase().trim();
+  const t = text.toLowerCase().replace(/[.!?,;:]+$/, '').trim(); // some recognisers add punctuation
   if (!t) return;
   trace('heard', { text });
   if (STOP.test(t) && (running || speaking)) return stopAll();
@@ -181,6 +181,7 @@ async function startTask(goal) {
 function stopAll() {
   abort = true;
   hush();
+  activeTab().then(t => t?.id != null && chrome.tabs.sendMessage(t.id, { type: 'clearMarks' }).catch(() => {}));
   if (pending) answer(pending.kind === 'confirm' ? false : 'stop');
   show('done', 'Stopped.');
 }

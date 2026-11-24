@@ -30,7 +30,7 @@ Reply with ONLY one JSON object:
    {"type":"read"}                                         // get the full page text when the snapshot text is not enough
    {"type":"look"}                                         // get a description of a screenshot, for unlabeled or visual pages
    {"type":"ask","question":"..."}                         // ask the user when the goal is ambiguous or you need their choice
-   {"type":"done","answer":"..."}                          // goal reached: answer is spoken to the user, be concise and complete
+   {"type":"done","answer":"..."}                          // goal reached: spoken to the user. Answer EVERY part of the question (who AND when AND where…) in one or two short sentences, with the exact facts from the page
  , "risky": true|false }
 
 Rules:
@@ -238,9 +238,10 @@ export async function run(goal, settings, io) {
     const SECRET = /password|passcode|card number|cvv|cvc|otp|one-time/i;
     const secretField = e => e?.tag === 'input' && (e.type === 'password' || SECRET.test(e.label || ''));
     const targets = a.type === 'fill' ? (a.fields || []).map(f => snap.elements.find(x => x.i === f.i)) : [el];
-    if ((a.type === 'type' || a.type === 'fill') && targets.some(secretField)) {
+    const asksForSecret = a.type === 'ask' && SECRET.test(a.question || d.say || '');
+    if (asksForSecret || ((a.type === 'type' || a.type === 'fill') && targets.some(secretField))) {
       if (a.type === 'fill') a.fields = a.fields.filter(f => !secretField(snap.elements.find(x => x.i === f.i)));
-      if (a.type === 'type' || !a.fields.length) {
+      if (asksForSecret || a.type === 'type' || !a.fields.length) {
         await send(tab.id, { type: 'clearMarks' }).catch(() => {});
         io.log('done', 'Handed the password to the user.');
         return io.say("The password box is ready. Please type it yourself. I never handle passwords.", { wait: true });
