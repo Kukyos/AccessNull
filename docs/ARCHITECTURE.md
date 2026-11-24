@@ -20,7 +20,7 @@ for step in 1..20:
   done?  → speak answer, stop
   ask?   → speak question, wait for the user's reply (voice or typed), continue
   gate:  needsConfirm(action, element)  → speak, wait for yes/no
-  act:   click | type | select | scroll | navigate | back | read (full text) | look (vision)
+  act:   click | type | fill | select | scroll | navigate | back | read (full text) | look (vision) | readaloud (hand over to read-aloud)
   settle: wait for tab load if the action can navigate
 ```
 
@@ -32,6 +32,14 @@ One line per element, in-view first, capped at 140:
 12 select "Size" [S|M|L] (offscreen)
 ```
 About three times cheaper in tokens than JSON objects, which matters on Groq's free-tier tokens-per-minute limit.
+
+## Read aloud
+
+`content.readable()` collects headings, paragraphs and list items in the main content from the current viewport down. The brain speaks them one at a time (waiting for each line to finish), sending `highlight` so a soft yellow wash follows along and scrolls into view. It pauses every 6 blocks ("say keep reading"). "Stop" cancels via a token, and "read it to me" after scrolling restarts from the new position.
+
+## Numbers
+
+Numbers are hidden by default; the agent works from the snapshot list without drawing them. "Show numbers" draws them (and the agent keeps them on during a task); the vision fallback draws them only for the instant it takes its screenshot.
 
 ## Safety
 

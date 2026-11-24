@@ -84,6 +84,28 @@
     return clean(root?.innerText).slice(0, limit);
   }
 
+  // ---------- read aloud: readable blocks from where the user is, with a soft highlight ----------
+  let blocks = [], lit = null;
+  function readable() {
+    const root = document.querySelector('main,article,[role=main]') || document.body;
+    blocks = [...root.querySelectorAll('h1,h2,h3,h4,p,li,blockquote,pre')].filter(el => {
+      if (el.closest('nav,header,footer,aside,#accessnull-root') || el.querySelector('p,li')) return false;
+      const r = visible(el);
+      return r && r.bottom > 60 && clean(el.innerText).length > 2;
+    });
+    return blocks.map((el, i) => ({ i, text: clean(el.innerText).slice(0, 1200) }));
+  }
+  function highlight(i) {
+    if (lit) { lit.style.backgroundColor = lit.dataset.anBg || ''; lit.style.boxShadow = lit.dataset.anShadow || ''; }
+    lit = blocks[i];
+    if (!lit) return;
+    lit.dataset.anBg = lit.style.backgroundColor; lit.dataset.anShadow = lit.style.boxShadow;
+    lit.style.transition = 'background-color .3s';
+    lit.style.backgroundColor = 'rgba(255, 214, 10, .28)';
+    lit.style.boxShadow = '0 0 0 6px rgba(255, 214, 10, .28)';
+    lit.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }
+
   // ---------- numbered marks overlay (set-of-marks, so users can also say "click 7") ----------
   let overlay = null;
   function drawMarks() {
@@ -241,7 +263,8 @@
     .listening .orb::after { inset: 11px; }
     .working .orb { animation: spin 1.4s linear infinite; }
     .working .orb::after { inset: 9px; }
-    .listening .orb { animation: breathe 1.8s ease-in-out infinite; }
+    .listening .orb, .reading .orb { animation: breathe 1.8s ease-in-out infinite; }
+    .reading .orb::after { inset: 9px; }
     @keyframes spin { to { transform: rotate(360deg); } }
     @keyframes breathe { 50% { transform: scale(.88); } }
     @media (prefers-reduced-motion: reduce) { .orb { animation: none !important; } }
@@ -332,6 +355,8 @@
         else if (msg.type === 'listen') reply((listen(msg.on), render(msg.ui, msg.on)));
         // the extension itself (never the page) can inject a heard phrase: used by the demo recorder
         else if (msg.type === 'heard') reply(chrome.runtime.sendMessage({ type: 'heard', text: msg.text }));
+        else if (msg.type === 'readable') reply(readable());
+        else if (msg.type === 'highlight') reply(highlight(msg.i));
         else if (msg.type === 'snapshot') reply(snapshot(msg));
         else if (msg.type === 'act') reply(await act(msg.action));
         else if (msg.type === 'clearMarks') reply(clearMarks());

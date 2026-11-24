@@ -93,7 +93,7 @@ async function heard(text) {
   const t = text.toLowerCase().replace(/[.!?,;:]+$/, '').trim(); // some recognisers add punctuation
   if (!t) return;
   trace('heard', { text });
-  if (STOP.test(t) && (running || speaking)) return stopAll();
+  if (STOP.test(t) && (running || speaking || reading?.token)) return stopAll();
   if (isEcho(t, lastSaid, speaking > 0, Date.now() - lastSpokeAt, pending?.kind === 'confirm')) return trace('echo', { text });
 
   if (pending?.kind === 'confirm') {
@@ -108,6 +108,39 @@ async function heard(text) {
   if (await quick(t)) return;
   startTask(text);
 }
+
+// ---------- read aloud ----------
+const READ_CHUNK = 6; // paragraphs before pausing for "keep reading"
+let reading = null; // { tab, list, next, token }
+async function readAloud(resume = false) {
+  const tab = (await activeTab())?.id;
+  if (!resume || !reading || reading.tab !== tab) {
+    const list = await send(tab, { type: 'readable' }).catch(() => []);
+    if (!list?.length) return io.say("I couldn't find anything to read here.");
+    reading = { tab, list, next: 0 };
+  }
+  const token = (reading.token = Symbol());
+  const end = Math.min(reading.list.length, reading.next + READ_CHUNK);
+  trace('read', { from: reading.next, to: end });
+  for (; reading.next < end; reading.next++) {
+    if (reading.token !== token) return; // stopped or restarted
+    const b = reading.list[reading.next];
+    await send(tab, { type: 'highlight', i: b.i }).catch(() => {});
+    show('reading', b.text.length > 90 ? b.text.slice(0, 88) + '…' : b.text);
+    await speak(b.text, { wait: true });
+  }
+  if (reading.token !== token) return;
+  await send(tab, { type: 'highlight', i: -1 }).catch(() => {});
+  if (reading.next < reading.list.length) {
+    show('idle', 'Say “keep reading” to go on.');
+    speak('Say keep reading to go on.');
+  } else {
+    show('done', 'That’s the end of this page.');
+    speak("That's the end of this page.");
+    reading = null;
+  }
+}
+io.readAloud = () => readAloud(false);
 
 // Instant commands: no AI round trip.
 async function quick(t) {
@@ -132,6 +165,8 @@ async function quick(t) {
     return show('idle'), true;
   }
   if (/^go back$/.test(t)) return chrome.tabs.goBack(tab.id), show('idle'), true;
+  if (/^(read (it|this|this page|the page|it to me|this to me|to me)|start reading)$/.test(t)) return readAloud(false), true;
+  if (/^(keep reading|continue reading|go on|continue|carry on)$/.test(t)) return readAloud(true), true;
   const nums = t.match(/^(show|hide) (the )?numbers$/);
   if (nums) {
     numbersOn = nums[1] === 'show';
@@ -159,6 +194,7 @@ async function startTask(goal) {
   }
   running = true;
   abort = false;
+  settings.showMarks = numbersOn;
   taskTab = (await activeTab())?.id;
   // keep the worker alive through slow model calls and long confirmations
   const alive = setInterval(() => chrome.runtime.getPlatformInfo(), 20000);
@@ -180,6 +216,7 @@ async function startTask(goal) {
 
 function stopAll() {
   abort = true;
+  if (reading) reading.token = null;
   hush();
   activeTab().then(t => t?.id != null && chrome.tabs.sendMessage(t.id, { type: 'clearMarks' }).catch(() => {}));
   if (pending) answer(pending.kind === 'confirm' ? false : 'stop');

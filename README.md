@@ -17,7 +17,8 @@ Screen readers make you walk a page one element at a time. Voice-control tools m
 | **Goal mode** | Observe → decide → act loop on the live page. Multi-step tasks across navigations, narrated step by step. |
 | **Spoken confirmation gate** | Pay / order / send / submit / delete need a spoken "yes"; a "no" ends the task. Enforced in code, not left to the model. |
 | **Never touches secrets** | Refuses to type into password, card, CVV or OTP fields; asks the user to do it. |
-| **Numbered marks** | Every clickable element gets a yellow number on screen: *"click 7"* works on any site. |
+| **Numbers on demand** | Say *"show numbers"* and every clickable thing gets a yellow number: *"click 7"* works on any site. Hidden the rest of the time. |
+| **Read aloud** | *"Read it to me"* reads the page from where you are, paragraph by paragraph, with a soft highlight following along. *"Stop"*, *"scroll down"*, *"keep reading"*. |
 | **Instant commands, no AI** | *"click sign in"*, *"scroll down"*, *"go back"* are matched locally (synonyms + typo tolerance), with no network round trip. |
 | **Vision fallback** | For icon-only buttons and visual pages, a vision model looks at a screenshot (with the numbers drawn on) and explains what's what. |
 | **Natural voice** | ElevenLabs Flash v2.5 narration; browser voice as fallback. |

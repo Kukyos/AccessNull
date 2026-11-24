@@ -29,6 +29,7 @@ Reply with ONLY one JSON object:
    {"type":"back"}
    {"type":"read"}                                         // get the full page text when the snapshot text is not enough
    {"type":"look"}                                         // get a description of a screenshot, for unlabeled or visual pages
+   {"type":"readaloud"}                                    // read the page's main text aloud to the user, from where they are. Use when they want an article, story or book read to them (navigate to it first)
    {"type":"ask","question":"..."}                         // ask the user when the goal is ambiguous or you need their choice
    {"type":"done","answer":"..."}                          // goal reached: spoken to the user. Answer EVERY part of the question (who AND when AND where…) in one or two short sentences, with the exact facts from the page
  , "risky": true|false }
@@ -215,7 +216,7 @@ export async function run(goal, settings, io) {
 
     let snap;
     try {
-      snap = await send(tab.id, { type: 'snapshot', marks: true });
+      snap = await send(tab.id, { type: 'snapshot', marks: !!settings.showMarks }); // numbers stay hidden unless the user asked for them
     } catch (e) {
       io.log('error', `Can't read this page (${e.message}).`);
       return io.say("Sorry, I can't read this page.");
@@ -255,6 +256,11 @@ export async function run(goal, settings, io) {
       return io.say(a.answer || d.say || 'Done.', { wait: true });
     }
 
+    if (a.type === 'readaloud') {
+      await send(tab.id, { type: 'clearMarks' }).catch(() => {});
+      return io.readAloud(); // d.say was already spoken above
+    }
+
     if (a.type === 'ask') {
       const reply = await io.ask(a.question || d.say);
       history.push({ step, action: a, result: `user replied: ${reply}` });
@@ -281,7 +287,10 @@ export async function run(goal, settings, io) {
         await chrome.tabs.goBack(tab.id);
         result = { ok: true, did: 'went back' };
       } else if (a.type === 'look') {
-        const desc = await look({ goal, settings, windowId: tab.windowId });
+        // the vision model needs the numbers in the picture: draw them just for the screenshot
+        await send(tab.id, { type: 'snapshot', marks: true });
+        const desc = await look({ goal, settings, windowId: tab.windowId }).finally(() =>
+          settings.showMarks || send(tab.id, { type: 'clearMarks' }).catch(() => {}));
         result = { ok: true, did: 'looked at the screen', description: desc };
       } else {
         result = await send(tab.id, { type: 'act', action: a });
