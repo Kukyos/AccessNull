@@ -28,6 +28,7 @@ Repo has two projects. **Work happens in `extension/`** unless told otherwise.
 - Commits: no AI attribution trailers.
 
 ## Status (update as you go)
+- 24 Nov 2026 night: read aloud with highlight, numbers only on demand, safe-list for add-to-cart/continue, snapshot retries, typing into div textboxes fixed. The demo film and deck are built outside this repo: see `C:/Users/Cleo/Desktop/hackathons/wHACKiest/HANDOFF.md`. Known site limits: Spotify playback fails in automated Edge (DRM); Swiggy's location modal loops the agent.
 - 24 Nov 2026 afternoon: v2.1, side panel replaced by the glass pill + service-worker brain. Tested live on Wikipedia, YouTube, Amazon.in (gate at checkout), Netflix (password handover). Provider is any OpenAI-compatible API (airouter.in gpt-4.1-mini during the ideathon).
 - 24 Nov 2026: v2 agent extension built and checked (unit + page self-check + loaded in Edge, snapshot on live Wikipedia). Not yet tested end to end with real Groq/ElevenLabs keys.
 - Ideathon deliverables (PPT `TeamNull_Track2`, video, Devnovate) are tracked in `C:\Users\Cleo\Desktop\hackathons\wHACKiest\PLAN.md`.

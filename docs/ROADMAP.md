@@ -4,6 +4,7 @@
 - [x] Glass pill UI (no panel), agent loop in the service worker, voice from an offscreen document
 - [x] Batch form `fill`, same-tab links, proven-done rule, echo guard, password handover
 - [x] Any OpenAI-compatible provider; keys from a git-ignored file
+- [x] Read aloud with follow-along highlight; numbers only on demand; reversible buttons never gated
 - [x] Numbered marks, "click N"
 - [x] Spoken confirmation gate + secret-field refusal (code-enforced)
 - [x] Offline instant commands (synonyms, typo tolerance)
