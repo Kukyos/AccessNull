@@ -151,7 +151,8 @@
   // React/Vue track value via the prototype setter; plain `el.value = x` is silently ignored by them.
   function setValue(el, text) {
     el.focus();
-    if (el.isContentEditable) {
+    // contenteditable, or a div acting as a textbox/combobox: the input setter would throw "Illegal invocation"
+    if (el.isContentEditable || !(el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement)) {
       document.execCommand('selectAll');
       document.execCommand('insertText', false, text);
       return;

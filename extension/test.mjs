@@ -45,3 +45,8 @@ assert.equal(isEcho('yes', q, false, 600, true), true, 'late transcript right af
 assert.equal(isEcho('stop', q, true, 0, true), false, 'stop always gets through');
 assert.equal(isEcho('order a large pizza for armaan', "i'm listening.", true, 0, false), false, 'a command right after the greeting is heard');
 console.log('echo guard ok');
+
+assert.equal(needsConfirm({ type: 'click', risky: true }, { label: 'Add to Cart' }), false, 'add to cart is never gated');
+assert.equal(needsConfirm({ type: 'click', risky: true }, { label: 'Proceed to Buy' }), true, 'model risk still gates other buttons');
+assert.equal(needsConfirm({ type: 'click' }, { label: 'Place your order' }), true);
+console.log('safe list ok');

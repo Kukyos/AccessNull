@@ -7,7 +7,11 @@ export const MAX_STEPS = 20;
 export const IRREVERSIBLE =
   /\b(pay|place (your )?order|buy|purchase|checkout|check out|submit|send|delete|remove|confirm|book|transfer|subscribe|sign up|register|post|publish|unsubscribe|cancel (my |the )?(order|subscription|booking))\b/i;
 
+// Reversible steps the model sometimes over-flags; never worth interrupting the user for.
+export const SAFE = /^(add to (cart|basket|bag)|continue|next|search|go|show more|see more|load more)$/i;
+
 export function needsConfirm(action, el) {
+  if (action.type === 'click' && el && SAFE.test((el.label || '').trim()) && !IRREVERSIBLE.test(el.label || '')) return false;
   if (action.risky) return true;
   return action.type === 'click' && !!el && IRREVERSIBLE.test(el.label || '');
 }
@@ -216,7 +220,15 @@ export async function run(goal, settings, io) {
 
     let snap;
     try {
-      snap = await send(tab.id, { type: 'snapshot', marks: !!settings.showMarks }); // numbers stay hidden unless the user asked for them
+      // a page that is still loading may not answer yet: give it a few tries
+      for (let tries = 0; ; tries++) {
+        try {
+          snap = await send(tab.id, { type: 'snapshot', marks: !!settings.showMarks }); // numbers stay hidden unless the user asked for them
+          if (snap?.elements) break;
+        } catch (e) { if (tries >= 3) throw e; }
+        if (tries >= 3) throw new Error('no snapshot');
+        await settle(tab.id);
+      }
     } catch (e) {
       io.log('error', `Can't read this page (${e.message}).`);
       return io.say("Sorry, I can't read this page.");
