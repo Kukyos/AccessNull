@@ -7,9 +7,10 @@ Repo has two projects. **Work happens in `extension/`** unless told otherwise.
 
 ## Map
 - `extension/agent.js`: loop, planner + vision calls (Groq), safety gate (`IRREVERSIBLE`, `needsConfirm`), offline matcher (`matchLabel`), snapshot compaction, tab plumbing
-- `extension/content.js`: snapshot, marks, actions, React-safe `setValue`, `isSecret`. Must stay stateless.
-- `extension/sidepanel.js`: voice routing, quick commands, confirm/ask UI, settings (chrome.storage.local)
-- `extension/voice.js`: ElevenLabs TTS + browser fallback, speech recognition
+- `extension/background.js`: the brain in the service worker: routing what was heard, quick commands, confirm/ask, pill state, `trace` in storage.session. `self.__accessnull` exposes hooks for DevTools / the demo recorder.
+- `extension/content.js`: glass pill (shadow DOM), speech recognition, snapshot, marks, actions (incl. batch `fill`), React-safe `setValue`, `isSecret`. Must stay stateless (asks the brain with `hello` on load).
+- `extension/offscreen.js` + `voice.js`: voice out (ElevenLabs → browser fallback)
+- `extension/options.*`: settings page. `extension/keys.local.json` (git-ignored) holds default keys.
 - `docs/ARCHITECTURE.md`: how it works. Update it when behaviour changes.
 - `docs/ROADMAP.md`: done / hack day / later. Tick items as they land.
 
@@ -22,10 +23,11 @@ Repo has two projects. **Work happens in `extension/`** unless told otherwise.
 ## Rules
 - Safety gate and secret refusal are enforced in code. Never move them into the prompt only.
 - Keys live in `chrome.storage.local`, never in files. Groq keys start `gsk_`. Grep before every push. An old Groq key is in this repo's git history (pre-Nov 2026); it must be revoked, not "removed".
-- The agent loop lives in the side panel because the content script dies on navigation and the MV3 worker dies when idle.
+- The agent loop lives in the service worker (kept alive with a 20 s ping during a task) because the content script dies on navigation. No side panel: users only ever see the glass pill.
 - Keep the prompt compact (Groq free-tier tokens-per-minute limits).
 - Commits: no AI attribution trailers.
 
 ## Status (update as you go)
+- 24 Nov 2026 afternoon: v2.1, side panel replaced by the glass pill + service-worker brain. Tested live on Wikipedia, YouTube, Amazon.in (gate at checkout), Netflix (password handover). Provider is any OpenAI-compatible API (airouter.in gpt-4.1-mini during the ideathon).
 - 24 Nov 2026: v2 agent extension built and checked (unit + page self-check + loaded in Edge, snapshot on live Wikipedia). Not yet tested end to end with real Groq/ElevenLabs keys.
 - Ideathon deliverables (PPT `TeamNull_Track2`, video, Devnovate) are tracked in `C:\Users\Cleo\Desktop\hackathons\wHACKiest\PLAN.md`.

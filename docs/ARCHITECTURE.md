@@ -4,12 +4,11 @@
 
 | Piece | File | Job |
 |---|---|---|
-| Service worker | `extension/background.js` | Opens the side panel on icon click; forwards Alt+Shift+A to it. Holds no state (MV3 kills it when idle). |
-| Side panel | `extension/sidepanel.{html,css,js}` | The app. Mic, routing of what the user says, confirmation UI, live log, settings. Lives across page navigations, which is why the agent runs here. |
-| Agent | `extension/agent.js` | The loop, the LLM calls (planner + vision), the safety gate, the offline matcher, tab plumbing. |
-| Voice | `extension/voice.js` | Speech in (Web Speech API, continuous, auto-restart) and out (ElevenLabs → browser TTS fallback), queued so lines never overlap. |
-| Content script | `extension/content.js` | Injected into every page. Snapshot, numbered marks overlay, actions. Stateless: rebuilt on every page load. |
-| Mic grant | `extension/mic.{html,js}` | Side panels can't show the mic permission prompt; this tab asks once for the extension origin. |
+| Brain (service worker) | `extension/background.js` | Routes what the user said (stop / yes-no / answers / instant commands / new task), runs the agent loop, drives the pill, keeps itself alive during a task. Survives page navigations, which is why the loop lives here. |
+| Agent | `extension/agent.js` | The loop, planner + vision calls (any OpenAI-compatible API), the safety gate, secret-field handover, echo guard, offline matcher, tab plumbing. |
+| Page (content script) | `extension/content.js` | The glass pill (shadow DOM), speech recognition, snapshot, numbered marks, actions (click, type, fill, select, scroll, read). Rebuilt on every page load; asks the brain for the current state with `hello` and carries on. |
+| Voice out | `extension/offscreen.{html,js}`, `extension/voice.js` | Offscreen document, because a service worker can't play audio and page audio would cut on navigation. ElevenLabs Flash v2.5, browser voice fallback, queued. |
+| Settings | `extension/options.{html,css,js}` | Keys, voice, language, models. Defaults come from `keys.local.json` (git-ignored). |
 
 ## The loop (`agent.run`)
 
@@ -39,7 +38,11 @@ About three times cheaper in tokens than JSON objects, which matters on Groq's f
 - **Gate in code**: `IRREVERSIBLE` regex on the target element's label (pay, order, buy, checkout, submit, send, delete, book, transfer, subscribe, post…) or `risky: true` from the model → spoken confirmation. Either one triggers it.
 - **Secrets**: `content.isSecret` refuses typing into password / card / CVV / OTP fields, whatever the model asks.
 - **Stop**: saying "stop" (also "ruko", "bas"), Esc, or the Stop button aborts the loop and cuts the voice.
-- **Echo**: while AccessNull is speaking, recognised speech is ignored unless it's "stop".
+- **Echo guard** (`isEcho`): the mic hears AccessNull's own voice. While a confirmation is waiting, anything heard during or within 1.2 s after its speech is discarded, so an echoed question can never count as "yes". Otherwise, phrases that mostly repeat its last line are dropped. "Stop" always gets through.
+- **A "no" ends the task.** The agent never re-asks the same irreversible step in another form.
+- **Secret handover happens before narration**: an attempt to type into a password/card/OTP input ends the task with "please type it yourself", so the agent never even says it's typing a password.
+- **No surprise tabs**: links that would open a new tab open in the same tab.
+- **Done must be proven**: the snapshot reports whether media is playing, and the prompt only allows "done" when the page shows the goal achieved.
 
 ## How elements are identified
 
@@ -56,5 +59,6 @@ Frameworks track an input's value through the prototype setter, so `el.value = x
 ## Known limits
 
 - iframes and shadow DOM aren't walked yet.
-- Pages that block extensions (chrome://, the Web Store) can't be scripted; the agent jumps to google.com.
+- Pages that block extensions (chrome://, the Web Store) can't be scripted; the agent jumps to duckduckgo.com.
+- Speech recognition runs in the page, so the browser asks for the mic once per site. ElevenLabs Scribe in the offscreen document removes that (roadmap).
 - Web Speech recognition sends audio to the browser vendor's cloud. Moving to ElevenLabs Scribe is on the roadmap.

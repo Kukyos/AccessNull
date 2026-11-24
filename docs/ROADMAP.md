@@ -1,7 +1,9 @@
 # Roadmap
 
 ## Ideathon MVP (submitted 24 Nov 2026), done
-- [x] Side-panel agent loop that survives navigation
+- [x] Glass pill UI (no panel), agent loop in the service worker, voice from an offscreen document
+- [x] Batch form `fill`, same-tab links, proven-done rule, echo guard, password handover
+- [x] Any OpenAI-compatible provider; keys from a git-ignored file
 - [x] Numbered marks, "click N"
 - [x] Spoken confirmation gate + secret-field refusal (code-enforced)
 - [x] Offline instant commands (synonyms, typo tolerance)

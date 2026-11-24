@@ -18,10 +18,11 @@ Each turn you get: the user's goal, the steps taken so far, the current page (ur
 
 Reply with ONLY one JSON object:
 {"thought": "your private reasoning, one sentence",
- "say": "what to tell the user right now, spoken aloud, max 20 words, plain friendly language, no element numbers",
+ "say": "spoken aloud to the user, max 12 words, plain friendly language, no element numbers. Use it on the first step (what you're about to do) and when you learn something new. Otherwise empty string: the user hears silence while you work, do not narrate every click",
  "action": ONE OF
    {"type":"click","i":N}
    {"type":"type","i":N,"text":"...","submit":true|false}   // submit=true presses Enter (good for search boxes)
+   {"type":"fill","fields":[{"i":N,"text":"..."},{"i":N,"check":true},{"i":N,"option":"..."}]}   // fill a whole form in one step: text inputs, checkboxes/radios (check), dropdowns (option). Never submits
    {"type":"select","i":N,"text":"option text"}
    {"type":"scroll","dir":"down"|"up"|"top"|"bottom"}
    {"type":"navigate","url":"https://..."}                  // go straight to a site you know
@@ -35,10 +36,11 @@ Reply with ONLY one JSON object:
 Rules:
 - One action per turn. After it, you will see the new page.
 - Prefer the fastest route: navigate directly to well-known sites (e.g. https://en.wikipedia.org/wiki/Special:Search?search=...), use the site's search box.
-- Set "risky": true for anything that spends money, sends or posts something, submits a form, deletes, or books. The user will be asked to confirm.
-- Never type passwords, card numbers, CVV or OTPs. If needed, use "ask" to tell the user to enter it themselves.
+- Continue/Next/Search buttons and adding to a cart are NOT risky. Set "risky": true for anything that spends money, sends or posts something, submits a form, deletes, or books. The user will be asked to confirm.
+- Never type passwords, card numbers, CVV or OTPs, even if the user tells you them, and never ask permission to. For a sign-in: use the site's own email/username form (not "Continue with Google/Apple/Facebook"), fill the email or username, press Continue/Next if the password box is on the next page, and once the password box is on screen finish with "done" telling the user the password box is ready and they should type it themselves, because you never handle passwords.
 - Elements marked offscreen are fine to click. If what you need is not in the list, scroll or read.
 - If an action failed, try a different approach, do not repeat the same failing action.
+- Only use "done" when the CURRENT page proves the goal is achieved (the video page is open and media says playing, the item shows in the cart, the answer is in the page text). Never claim something happened that the page does not show; if unsure, check first.
 - When the user only asks what is on the page, answer with "done" right away, summarising the page in plain words.
 - Write "say", "question" and "answer" in the user's language: {LANG}.`;
 
@@ -47,7 +49,7 @@ export async function decide({ goal, history, snap, settings }) {
     goal,
     // bulky page_text / screen only matter right after the read/look that produced them
     steps_so_far: history.slice(-10).map((h, k, a) => (k === a.length - 1 ? h : { ...h, page_text: undefined, screen: undefined })),
-    page: { url: snap.url, title: snap.title, scroll: snap.scroll, text: snap.text },
+    page: { url: snap.url, title: snap.title, scroll: snap.scroll, media: snap.media, text: snap.text },
     elements: compact(snap.elements),
   };
   const body = {
@@ -59,9 +61,9 @@ export async function decide({ goal, history, snap, settings }) {
       { role: 'user', content: JSON.stringify(user) },
     ],
   };
-  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+  const res = await fetch(`${settings.apiBase || 'https://api.groq.com/openai/v1'}/chat/completions`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${settings.groqKey}` },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${settings.apiKey}` },
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`AI ${res.status}: ${(await res.text()).slice(0, 160)}`);
@@ -84,6 +86,9 @@ export function parseDecision(raw) {
   const m = String(raw).match(/\{[\s\S]*\}/);
   if (!m) throw new Error('AI reply was not JSON');
   const d = JSON.parse(m[0]);
+  // models drift between shapes: {"action":"done","answer":..} or {"type":"click",..} at the top level
+  if (typeof d.action === 'string') d.action = { ...d, type: d.action, action: undefined };
+  else if (!d.action && typeof d.type === 'string') d.action = { ...d };
   if (!d.action || typeof d.action.type !== 'string') throw new Error('AI reply had no action');
   if (d.risky != null && d.action.risky == null) d.action.risky = !!d.risky;
   return d;
@@ -92,9 +97,9 @@ export function parseDecision(raw) {
 // Vision: screenshot of the tab (with the numbered marks drawn on it) → plain description.
 export async function look({ goal, settings, windowId }) {
   const shot = await chrome.tabs.captureVisibleTab(windowId, { format: 'jpeg', quality: 60 });
-  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+  const res = await fetch(`${settings.apiBase || 'https://api.groq.com/openai/v1'}/chat/completions`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${settings.groqKey}` },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${settings.apiKey}` },
     body: JSON.stringify({
       model: settings.visionModel || 'meta-llama/llama-4-scout-17b-16e-instruct',
       temperature: 0.1,
@@ -109,6 +114,18 @@ export async function look({ goal, settings, windowId }) {
   });
   if (!res.ok) throw new Error(`vision ${res.status}`);
   return (await res.json()).choices[0].message.content;
+}
+
+export const STOP = /^(stop|cancel|abort|quiet|shut up|ruko|bas)\b/i;
+
+// Our own voice coming back through the mic. Matters most for confirmations: an echoed question must never count as a yes.
+export function isEcho(t, said, busy, sinceMs, strict) {
+  if (STOP.test(t)) return false;
+  // strict = a confirmation is waiting: anything heard while or just after we spoke is discarded
+  if (strict && (busy || sinceMs < 1200)) return true; // final transcripts land a moment after the audio stops
+  const words = t.split(/\s+/).filter(w => w.length > 2);
+  const overlap = words.length ? words.filter(w => said.includes(w)).length / words.length : 0;
+  return words.length >= 2 && overlap > (busy ? 0.3 : 0.6);
 }
 
 // ---------- offline matcher: "click sign in" without any AI ----------
@@ -152,8 +169,10 @@ export function matchLabel(target, elements) {
 
 // ---------- tab plumbing ----------
 export async function activeTab() {
-  const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-  return tab;
+  // the active web tab, ignoring our own pages, so the panel also works when opened as a tab/window
+  const tabs = await chrome.tabs.query({ active: true });
+  const web = tabs.filter(t => !t.url?.startsWith('chrome-extension:'));
+  return web.sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0))[0] || tabs[0];
 }
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -183,12 +202,13 @@ export async function send(tabId, msg) {
 // io: { say(text), confirm(question) -> bool, ask(question) -> string, log(kind, text), aborted() -> bool }
 export async function run(goal, settings, io) {
   const history = [];
+  let lastSay = '';
   for (let step = 1; step <= MAX_STEPS; step++) {
     if (io.aborted()) return io.log('stop', 'Stopped.');
     const tab = await activeTab();
     if (!tab?.id || /^(chrome|edge|about|chrome-extension):/.test(tab.url || '')) {
       // can't script browser pages: start the agent from a real site
-      await chrome.tabs.update(tab.id, { url: 'https://www.google.com' });
+      await chrome.tabs.update(tab.id, { url: 'https://duckduckgo.com' });
       await settle(tab.id);
       continue;
     }
@@ -204,17 +224,29 @@ export async function run(goal, settings, io) {
     let d;
     try {
       io.log('think', `Step ${step}: thinking…`);
-      d = await decide({ goal, history, snap, settings });
+      d = await decide({ goal, history, snap, settings }).catch(() => decide({ goal, history, snap, settings })); // one retry
     } catch (e) {
       io.log('error', e.message);
-      return io.say('Sorry, I could not reach the AI. Check the key in settings.');
+      return io.say('Sorry, the AI did not answer properly. Please try again.');
     }
     if (io.aborted()) return io.log('stop', 'Stopped.');
 
     const a = d.action;
     const el = a.i != null ? snap.elements.find(x => x.i === a.i) : null;
-    io.log('plan', `${d.thought || ''}`);
-    if (d.say && a.type !== 'done' && a.type !== 'ask') io.say(d.say);
+    io.log('plan', `${d.thought || ''} :: ${JSON.stringify(a)}`);
+    // a model trying to type a secret is stopped before it even narrates it: hand the moment to the user
+    const SECRET = /password|passcode|card number|cvv|cvc|otp|one-time/i;
+    const secretField = e => e?.tag === 'input' && (e.type === 'password' || SECRET.test(e.label || ''));
+    const targets = a.type === 'fill' ? (a.fields || []).map(f => snap.elements.find(x => x.i === f.i)) : [el];
+    if ((a.type === 'type' || a.type === 'fill') && targets.some(secretField)) {
+      if (a.type === 'fill') a.fields = a.fields.filter(f => !secretField(snap.elements.find(x => x.i === f.i)));
+      if (a.type === 'type' || !a.fields.length) {
+        await send(tab.id, { type: 'clearMarks' }).catch(() => {});
+        io.log('done', 'Handed the password to the user.');
+        return io.say("The password box is ready. Please type it yourself. I never handle passwords.", { wait: true });
+      }
+    }
+    if (d.say && d.say !== lastSay && a.type !== 'done' && a.type !== 'ask') io.say((lastSay = d.say));
 
     if (a.type === 'done') {
       io.log('done', a.answer || d.say || 'Done.');
@@ -230,11 +262,12 @@ export async function run(goal, settings, io) {
 
     if (needsConfirm(a, el)) {
       const what = el ? `${a.type} "${el.label}"` : a.type;
-      const ok = await io.confirm(d.say ? `${d.say} Should I go ahead?` : `I'm about to ${what}. Should I go ahead?`);
+      const ok = await io.confirm(d.say ? `${d.say} Should I continue?` : `I'm about to ${what}. Should I continue?`);
       if (!ok) {
-        history.push({ step, action: a, result: 'user said NO, do not do this; ask what they want instead or finish' });
-        io.log('stop', 'Okay, not doing that.');
-        continue;
+        // a "no" ends the task: never re-ask the same irreversible step in another form
+        await send(tab.id, { type: 'clearMarks' }).catch(() => {});
+        io.log('stop', "Okay, I've stopped there.");
+        return io.say("Okay, I've stopped there. Nothing was submitted.", { wait: true });
       }
     }
 

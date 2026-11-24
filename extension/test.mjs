@@ -32,3 +32,16 @@ import { compact } from './agent.js';
 const line = compact([{ i: 7, tag: 'select', label: 'Size', options: ['S', 'L'], offscreen: true }, { i: 8, tag: 'input', type: 'email', label: 'Email', value: 'a@b.c' }]);
 assert.equal(line, '7 select "Size" [S|L] (offscreen)\n8 input:email "Email" ="a@b.c"');
 console.log('compact format ok');
+assert.equal(parseDecision('{"say":"x","action":"done","answer":"42"}').action.answer, '42', 'string action shape');
+assert.equal(parseDecision('{"type":"scroll","dir":"down"}').action.dir, 'down', 'top-level shape');
+console.log('parser shapes ok');
+
+import { isEcho } from './agent.js';
+const q = 'everything is filled in. should i continue?';
+assert.equal(isEcho('should i continue', q, false, 5000, true), true, 'our own question is echo');
+assert.equal(isEcho('yes go for it', q, false, 5000, true), false, 'a real yes is not echo');
+assert.equal(isEcho('yes', q, true, 0, true), true, 'while confirming, anything during our speech is echo');
+assert.equal(isEcho('yes', q, false, 600, true), true, 'late transcript right after the question is echo');
+assert.equal(isEcho('stop', q, true, 0, true), false, 'stop always gets through');
+assert.equal(isEcho('order a large pizza for armaan', "i'm listening.", true, 0, false), false, 'a command right after the greeting is heard');
+console.log('echo guard ok');

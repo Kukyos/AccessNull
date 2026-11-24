@@ -1,16 +1,16 @@
 {
   "manifest_version": 3,
   "name": "AccessNull",
-  "version": "2.0.0",
-  "description": "A web agent for people who can't see the screen or use a mouse. Say what you want done; it does it and tells you what's happening.",
-  "permissions": ["sidePanel", "storage", "tabs", "scripting", "activeTab"],
+  "version": "2.1.0",
+  "description": "Say what you want done on any website. AccessNull does it, tells you what's happening, and asks before anything you can't undo.",
+  "permissions": ["storage", "tabs", "scripting", "activeTab", "offscreen"],
   "host_permissions": ["<all_urls>"],
-  "background": { "service_worker": "background.js" },
-  "side_panel": { "default_path": "sidepanel.html" },
+  "background": { "service_worker": "background.js", "type": "module" },
   "content_scripts": [
     { "matches": ["<all_urls>"], "js": ["content.js"], "run_at": "document_idle" }
   ],
-  "action": { "default_title": "Open AccessNull" },
+  "action": { "default_title": "AccessNull: start or stop listening (Alt+Shift+A)" },
+  "options_page": "options.html",
   "icons": { "128": "icon.png" },
   "commands": {
     "toggle-listen": {

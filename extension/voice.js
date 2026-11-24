@@ -1,4 +1,4 @@
-// AccessNull — voice in (Web Speech recognition) and voice out (ElevenLabs, browser TTS fallback).
+// AccessNull — voice out: ElevenLabs, with the browser voice as fallback. Runs in the offscreen document.
 
 let audio = null;
 let queue = Promise.resolve();
@@ -35,7 +35,7 @@ async function say(text, settings) {
 }
 
 async function eleven(text, settings) {
-  const voice = settings.voiceId || '21m00Tcm4TlvDq8EGXA3';
+  const voice = settings.voiceId || 'EXAVITQu4vr4xnSDxMaL';
   const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voice}?output_format=mp3_44100_128`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'xi-api-key': settings.elevenKey },
@@ -59,41 +59,4 @@ function browserVoice(text, lang) {
     u.onend = u.onerror = resolve;
     speechSynthesis.speak(u);
   });
-}
-
-// ---------- listening ----------
-// Continuous recognition; Chrome ends sessions on its own every so often, so we restart.
-export function listener({ lang, onText, onState, onDenied }) {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  let rec = null, on = false;
-  return {
-    get on() { return on; },
-    start() {
-      if (on || !SR) return;
-      rec = new SR();
-      rec.continuous = true;
-      rec.interimResults = true;
-      rec.lang = lang();
-      rec.onresult = e => {
-        const r = e.results[e.results.length - 1];
-        onText(r[0].transcript.trim(), r.isFinal);
-      };
-      rec.onerror = e => {
-        if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
-          on = false;
-          onState(false);
-          onDenied();
-        }
-      };
-      rec.onend = () => on && setTimeout(() => on && rec.start(), 120);
-      on = true;
-      rec.start();
-      onState(true);
-    },
-    stop() {
-      on = false;
-      rec?.stop();
-      onState(false);
-    },
-  };
 }

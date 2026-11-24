@@ -73,6 +73,8 @@
       title: document.title,
       scroll: { y: Math.round(scrollY), max: Math.round(document.documentElement.scrollHeight - innerHeight) },
       elements,
+      media: [...document.querySelectorAll('video,audio')].filter(m => !m.paused && !m.ended && m.currentTime > 0).length
+        ? 'a video/audio is playing on this page' : 'nothing is playing',
       text: pageText(3500),
     };
   }
@@ -160,6 +162,8 @@
         flash(el);
         await new Promise(r => setTimeout(r, 250));
         el.focus?.();
+        // new tabs disorient someone who can't see them: keep the journey in one tab
+        el.closest('a[target]')?.removeAttribute('target');
         el.click();
         return { ok: true, did: `clicked "${labelFor(el)}"` };
       }
@@ -171,6 +175,27 @@
         setValue(el, a.text ?? '');
         if (a.submit) pressEnter(el);
         return { ok: true, did: `typed "${a.text}" into "${labelFor(el)}"${a.submit ? ' and pressed Enter' : ''}` };
+      }
+      case 'fill': {
+        const done = [], failed = [];
+        for (const f of a.fields || []) {
+          const el = refs[f.i];
+          if (!el?.isConnected) { failed.push(`${f.i} gone`); continue; }
+          if (isSecret(el)) { failed.push(`refused secret field "${labelFor(el)}"`); continue; }
+          el.scrollIntoView({ block: 'center', behavior: 'instant' });
+          flash(el);
+          if (f.check != null) {
+            if (el.checked !== !!f.check) el.click();
+          } else if (f.option != null && el.tagName === 'SELECT') {
+            const opt = [...el.options].find(o => clean(o.text).toLowerCase().includes(String(f.option).toLowerCase()));
+            if (!opt) { failed.push(`no option "${f.option}"`); continue; }
+            el.value = opt.value;
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+          } else setValue(el, f.text ?? '');
+          done.push(labelFor(el));
+          await new Promise(r => setTimeout(r, 180)); // visible, one field at a time
+        }
+        return { ok: done.length > 0, did: `filled ${done.join(', ')}${failed.length ? `; problems: ${failed.join(', ')}` : ''}`, error: failed.join(', ') };
       }
       case 'select': {
         if (el?.tagName !== 'SELECT') return { ok: false, error: 'not a dropdown' };
@@ -196,10 +221,118 @@
     }
   }
 
+  // ---------- the glass pill: the only UI a user ever sees ----------
+  // Shadow DOM so the site's CSS can't touch it; bottom-centre so it never covers the page's own controls for long.
+  const PILL_CSS = `
+    :host { all: initial; }
+    .wrap { position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 140%); z-index: 2147483647;
+      transition: transform .55s cubic-bezier(.16,1,.3,1), opacity .3s; opacity: 0; pointer-events: none; }
+    .wrap.on { transform: translate(-50%, 0); opacity: 1; pointer-events: auto; }
+    .pill { display: flex; align-items: center; gap: 12px; min-width: 220px; max-width: min(640px, calc(100vw - 32px));
+      padding: 10px 18px 10px 10px; border-radius: 30px;
+      background: rgba(255,255,255,.62); backdrop-filter: blur(28px) saturate(180%); -webkit-backdrop-filter: blur(28px) saturate(180%);
+      border: 1px solid rgba(255,255,255,.7); box-shadow: 0 12px 40px rgba(0,0,0,.18), 0 1px 0 rgba(255,255,255,.8) inset;
+      font: 500 16px/1.35 -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, "Segoe UI", system-ui, sans-serif;
+      color: #111; letter-spacing: -.01em; transition: border-radius .4s; }
+    .orb { flex: none; width: 34px; height: 34px; border-radius: 50%; position: relative; overflow: hidden;
+      background: conic-gradient(from 0deg, #ffd60a, #ff9f0a, #ff375f, #bf5af2, #0a84ff, #ffd60a);
+      box-shadow: 0 0 0 1px rgba(0,0,0,.06); }
+    .orb::after { content: ""; position: absolute; inset: 7px; border-radius: 50%; background: rgba(255,255,255,.85); transition: inset .4s; }
+    .listening .orb::after { inset: 11px; }
+    .working .orb { animation: spin 1.4s linear infinite; }
+    .working .orb::after { inset: 9px; }
+    .listening .orb { animation: breathe 1.8s ease-in-out infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes breathe { 50% { transform: scale(.88); } }
+    @media (prefers-reduced-motion: reduce) { .orb { animation: none !important; } }
+    .text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .text.long { white-space: normal; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+    .heard .text { font-style: italic; color: #333; }
+    .btns { display: none; gap: 8px; flex: none; }
+    .confirm .btns { display: flex; }
+    button { all: unset; cursor: pointer; padding: 8px 16px; border-radius: 20px; font: 600 15px/1 inherit; font-family: inherit; }
+    .yes { background: #111; color: #fff; }
+    .no { background: rgba(0,0,0,.07); color: #111; }
+    button:focus-visible { outline: 3px solid #0a84ff; outline-offset: 2px; }
+    .x { padding: 6px 8px; color: #666; font-size: 18px; }
+    .confirm .x { display: none; }
+    @media (prefers-color-scheme: dark) {
+      .pill { background: rgba(30,30,32,.62); border-color: rgba(255,255,255,.12); color: #f5f5f7; box-shadow: 0 12px 40px rgba(0,0,0,.45); }
+      .orb::after { background: rgba(30,30,32,.9); }
+      .heard .text { color: #ccc; } .yes { background: #f5f5f7; color: #111; } .no { background: rgba(255,255,255,.12); color: #f5f5f7; } .x { color: #aaa; }
+    }`;
+  let host = null, pillEl = null;
+  function pill() {
+    if (host?.isConnected) return pillEl;
+    host = document.createElement('accessnull-pill');
+    host.id = 'accessnull-root';
+    const root = host.attachShadow({ mode: 'closed' });
+    root.innerHTML = `<style>${PILL_CSS}</style>
+      <div class="wrap" role="status" aria-live="polite">
+        <div class="pill"><div class="orb" aria-hidden="true"></div><div class="text"></div>
+          <div class="btns"><button class="yes">Yes</button><button class="no">No</button></div>
+          <button class="x" aria-label="Close AccessNull">×</button></div></div>`;
+    pillEl = root.querySelector('.wrap');
+    root.querySelector('.yes').onclick = () => chrome.runtime.sendMessage({ type: 'confirm', ok: true });
+    root.querySelector('.no').onclick = () => chrome.runtime.sendMessage({ type: 'confirm', ok: false });
+    root.querySelector('.x').onclick = () => chrome.runtime.sendMessage({ type: 'close' });
+    document.documentElement.appendChild(host);
+    return pillEl;
+  }
+  const IDLE_TEXT = 'Listening…';
+  let hideTimer = 0;
+  function render(ui, visible = true) {
+    const w = pill();
+    clearTimeout(hideTimer);
+    if (!visible) return w.classList.remove('on');
+    const state = ui?.state || 'idle';
+    w.className = `wrap on ${state === 'idle' ? 'listening' : state === 'ask' ? 'listening' : state}`;
+    const text = w.querySelector('.text');
+    text.textContent = state === 'heard' ? `“${ui.text}”` : ui?.text || IDLE_TEXT;
+    text.classList.toggle('long', text.textContent.length > 70);
+    if (state === 'confirm') w.querySelector('.yes').focus();
+    // a finished answer stays long enough to read, then the pill relaxes back to listening
+    if (state === 'done') hideTimer = setTimeout(() => render({ state: 'idle' }, listening), 9000);
+  }
+
+  // ---------- voice in ----------
+  // ponytail: recognition runs in the page, so Chrome asks for the mic once per site; ElevenLabs Scribe in an offscreen doc removes that.
+  let listening = false, rec = null;
+  function listen(on) {
+    listening = on;
+    if (!on) return rec?.stop(), (rec = null);
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR || rec) return;
+    rec = new SR();
+    rec.continuous = true;
+    rec.interimResults = true;
+    chrome.storage.local.get('lang').then(({ lang }) => (rec.lang = lang || 'en-IN'));
+    rec.onresult = e => {
+      const r = e.results[e.results.length - 1];
+      const text = r[0].transcript.trim();
+      if (r.isFinal) chrome.runtime.sendMessage({ type: 'heard', text });
+    };
+    rec.onend = () => listening && rec && setTimeout(() => { try { rec.start(); } catch {} }, 150);
+    try { rec.start(); } catch {}
+  }
+
+  addEventListener('keydown', e => e.key === 'Escape' && listening && chrome.runtime.sendMessage({ type: 'stop' }));
+
+  // on every page load: rejoin a running task / keep listening across navigations
+  globalThis.chrome?.runtime?.sendMessage?.({ type: 'hello' }).then(r => {
+    if (!r?.listening) return;
+    listen(true);
+    render(r.ui);
+  }).catch(() => {});
+
   globalThis.chrome?.runtime?.onMessage?.addListener((msg, _s, reply) => {
     (async () => {
       try {
-        if (msg.type === 'snapshot') reply(snapshot(msg));
+        if (msg.type === 'ui') reply(render(msg.ui));
+        else if (msg.type === 'listen') reply((listen(msg.on), render(msg.ui, msg.on)));
+        // the extension itself (never the page) can inject a heard phrase: used by the demo recorder
+        else if (msg.type === 'heard') reply(chrome.runtime.sendMessage({ type: 'heard', text: msg.text }));
+        else if (msg.type === 'snapshot') reply(snapshot(msg));
         else if (msg.type === 'act') reply(await act(msg.action));
         else if (msg.type === 'clearMarks') reply(clearMarks());
         else if (msg.type === 'label') reply({ label: refs[msg.i] ? labelFor(refs[msg.i]) : null, secret: refs[msg.i] ? isSecret(refs[msg.i]) : false });
