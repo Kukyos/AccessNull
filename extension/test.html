@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>AccessNull content self-check</title>
+<style>body{font:16px system-ui;padding:20px} pre{background:#111;color:#0f0;padding:10px} .spacer{height:2000px}</style></head>
+<body>
+<h1>AccessNull content-script self-check</h1>
+<label for="city">City</label> <input id="city">
+<input id="react" placeholder="Search products">
+<input type="password" id="pw" aria-label="Password">
+<button id="buy" onclick="window.clicked='buy'">Place order</button>
+<div role="button" aria-label="Open cart" tabindex="0" style="display:inline-block;width:24px;height:24px;background:#ccc"></div>
+<button style="display:none">Hidden thing</button>
+<select id="size" aria-label="Size"><option>Small</option><option>Large</option></select>
+<div class="spacer"></div>
+<a href="#footer">Contact us</a>
+<pre id="out"></pre>
+<script>
+// fake React: an instance-level value setter that React-style libraries use to track changes
+const r = document.getElementById('react');
+let tracked = '';
+Object.defineProperty(r, 'value', {
+  get() { return Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').get.call(this); },
+  set(v) { tracked = v; Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(this, v); },
+});
+r.addEventListener('input', () => (window.reactSaw = r.value !== tracked ? r.value : null));
+</script>
+<script src="content.js"></script>
+<script>
+(async () => {
+  const out = [], ok = (c, m) => out.push((c ? 'PASS ' : 'FAIL ') + m);
+  const A = window.__accessnull;
+  const s = A.snapshot();
+  const by = l => s.elements.find(e => e.label === l);
+  ok(by('City'), 'label[for] used');
+  ok(by('Search products'), 'placeholder used');
+  ok(by('Open cart')?.role === 'button', 'aria role button found');
+  ok(!s.elements.some(e => e.label === 'Hidden thing'), 'hidden excluded');
+  ok(by('Contact us')?.offscreen, 'offscreen flagged');
+  ok(by('Size')?.options?.length === 2, 'select options listed');
+  ok(document.getElementById('accessnull-root'), 'number marks drawn');
+  await A.act({ type: 'type', i: by('Search products').i, text: 'steel bottle' });
+  ok(window.reactSaw === 'steel bottle', 'React-style input sees typed value');
+  const pw = await A.act({ type: 'type', i: by('Password').i, text: 'hunter2' });
+  ok(!pw.ok && document.getElementById('pw').value === '', 'password typing refused');
+  await A.act({ type: 'select', i: by('Size').i, text: 'large' });
+  ok(document.getElementById('size').value === 'Large', 'select by text');
+  A.snapshot();
+  await A.act({ type: 'click', i: A.snapshot({ marks: false }).elements.find(e => e.label === 'Place order').i });
+  ok(window.clicked === 'buy', 'click fires handler');
+  document.getElementById('out').textContent = out.join('\n');
+  document.title = out.some(l => l.startsWith('FAIL')) ? 'FAIL' : 'ALL PASS';
+})();
+</script>
+</body></html>

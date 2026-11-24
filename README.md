@@ -1,85 +1,62 @@
-# AccessPoint 🎯
+# AccessNull
 
-**A forehead-controlled web interface for people with limb disabilities.**
+**A web agent for people who can't see the screen or use a mouse.**
 
-AccessPoint lets someone navigate a full web application — menus, forms, a chat
-assistant — using nothing but head movement tracked through a standard webcam.
-No special hardware, no installed drivers. It runs in the browser.
+Say what you want done: *"find the cheapest steel water bottle and add it to the cart"*, *"what's on this page?"*, *"fill this form with my details"*. AccessNull plans the steps, does them on the real website, and tells you what's happening in a natural voice. Before anything that can't be undone (paying, sending, submitting, deleting) it stops and asks you out loud.
 
-Built for the *AI for Disability* hackathon category.
+Built for **wHACKiest 2026 · Track 2: Beyond the Browser** by Team null.
 
-![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)
-![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)
-![MediaPipe](https://img.shields.io/badge/MediaPipe-FaceMesh-00A67E)
-![License](https://img.shields.io/badge/License-MIT-yellow)
+## Why
 
----
+Screen readers make you walk a page one element at a time. Voice-control tools make you say each button's exact label. The new agentic browsers are built for sighted power users, mostly in English. AccessNull starts from the user who can't see the page or hold a mouse and gives them the whole web back with one sentence.
 
-## Run it
+## What it does
 
-```bash
-git clone https://github.com/Kukyos/AccessNull.git
-cd AccessNull
-npm install && npm run dev
-```
-
-Open `http://localhost:5173` and grant camera access when prompted.
-
-**No webcam?** Press `D` for demo mode — every feature works with the mouse.
-
-Requires Node.js 20.19+ (or 22.12+) and a Chromium-based browser.
-In production the camera API requires HTTPS; `localhost` is exempt.
-
----
-
-## How the interaction works
-
-| Action | Mechanism |
+| | |
 |---|---|
-| Move cursor | MediaPipe Face Mesh tracks the forehead landmark; position maps to screen coordinates |
-| Click | Dwell for 2s over a target (radial progress indicator), **or** blink |
-| Calibrate | Trace an on-screen pattern with your forehead — sets per-user sensitivity |
-| Speak / listen | Web Speech API for STT and TTS |
+| **Goal mode** | Observe → decide → act loop on the live page. Multi-step tasks across navigations, narrated step by step. |
+| **Spoken confirmation gate** | Pay / order / send / submit / delete need a spoken "yes". Enforced in code, not left to the model. |
+| **Never touches secrets** | Refuses to type into password, card, CVV or OTP fields; asks the user to do it. |
+| **Numbered marks** | Every clickable element gets a yellow number on screen: *"click 7"* works on any site. |
+| **Instant commands, no AI** | *"click sign in"*, *"scroll down"*, *"go back"* are matched locally (synonyms + typo tolerance), with no network round trip. |
+| **Vision fallback** | For icon-only buttons and visual pages, a vision model looks at a screenshot (with the numbers drawn on) and explains what's what. |
+| **Natural voice** | ElevenLabs Flash v2.5 narration; browser voice as fallback. |
+| **Indian languages** | English, Hindi, Tamil, Kannada, Telugu for listening and replies. |
+| **Hands-free** | Alt+Shift+A toggles listening. Head-pointer control comes from [AccessPoint](docs/ACCESSPOINT.md) (this repo's `src/`). |
 
-## What's in it
+## Try it
 
-- **Forehead cursor** — webcam head tracking, no hardware
-- **Dwell + blink clicking** — two independent selection methods
-- **Pattern calibration** — secure, personalised setup via forehead-traced patterns
-- **Multilingual assistant** — voice-capable chatbot for medical and accessibility queries
-- **Accessible navigation** — prescriptions, campus accessibility info, assistance requests
-- **High-contrast healthcare UI** — tuned for clinical environments
+1. `chrome://extensions` (or `edge://extensions`) → **Developer mode** → **Load unpacked** → pick the [`extension/`](extension) folder.
+2. Click the AccessNull icon. The side panel opens.
+3. **Settings**: paste a Groq API key (free at console.groq.com). Optional: an ElevenLabs key for the natural voice.
+4. Press **Start listening** (the first time, a tab asks for microphone access) and speak. Or type a request.
 
-## Stack
+Self-checks: `cd extension && node test.mjs` (agent logic) and open `extension/test.html` over http (page actions).
 
-React 19 · TypeScript · Vite · MediaPipe Face Mesh · Tailwind CSS · Web Speech API
-
-## Layout
+## How it works
 
 ```
-src/
-├── components/
-│   ├── Camera/     webcam feed + frame pipeline
-│   ├── Cursor/     forehead-driven pointer & dwell indicator
-│   ├── Menu/       primary navigation
-│   └── Chat/       assistant UI
-├── hooks/          tracking, calibration, speech
-├── utils/          landmark smoothing, coordinate mapping
-└── types/
+ you speak ──► Side panel (agent loop, mic, voice)  ──► Groq: planner LLM + vision model
+                    │   ▲                              ElevenLabs: speech
+        snapshot /  │   │ numbered elements, page text
+        actions     ▼   │
+               Content script on the page (marks, click, type, select, scroll)
 ```
 
-See [SETUP.md](./SETUP.md) for detailed setup.
+Details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · Roadmap: [docs/ROADMAP.md](docs/ROADMAP.md)
 
-## Who it's for
+## Repo layout
 
-Amputees and people with limited limb mobility; medical facilities needing
-hands-free patient interaction; campus accessibility services; rehabilitation
-centres.
+```
+extension/   AccessNull: the browser agent (Chrome/Edge MV3, plain JS, no build step)
+src/         AccessPoint: head-pointer web app (React + MediaPipe), see docs/ACCESSPOINT.md
+docs/        architecture, roadmap, AccessPoint docs
+```
 
-## Contributing
+## Team null
 
-Issues and PRs welcome.
+A M Armaan · Pooja Shree Ravichandar
 
-## License
 
-MIT — see [LICENSE](./LICENSE).
+
+MIT licensed, see [LICENSE](LICENSE).
