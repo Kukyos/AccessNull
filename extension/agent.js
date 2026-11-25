@@ -161,6 +161,13 @@ export async function look({ goal, settings, windowId, prompt }) {
   return (await res.json()).choices[0].message.content;
 }
 
+// Her name at the start of a sentence, plus the ways recognisers mishear it. Returns the rest of the sentence, or null.
+const NAME = /^\s*(?:(?:hey|hi|ok|okay|hello|hai)[\s,]+)?(?:nova|noah|nava|novah|nover|nowa|neva|innova|no va|नोवा)\b[\s,.!:]*/i;
+export function addressed(text) {
+  const m = text.match(NAME);
+  return m ? text.slice(m[0].length) : null;
+}
+
 // JS \b only knows ASCII letters, so Indian-script words get their own alternation without it
 export const STOP = /^(stop|cancel|abort|quiet|shut up|ruko|bas)\b|^(रुको|रुकिए|बस|बंद करो|स्टॉप|நிறுத்து|ನಿಲ್ಲಿಸು|ఆపు)/i;
 

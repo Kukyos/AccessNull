@@ -14,7 +14,9 @@ const START = pathToFileURL(path.join(HERE, 'start.html')).href;
 const UA = `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${process.versions.chrome} Safari/537.36`;
 app.userAgentFallback = UA; // sites (WhatsApp, Google) turn away browsers they don't recognise
 app.setName('AccessNull');
-app.setAppUserModelId?.('AccessNull.Nova'); // its own taskbar entry and icon, not Electron's
+app.setAppUserModelId?.('AccessNull.Nova');
+// automated runs get their own profile, so tests never touch the user's logins or settings
+if (process.env.NOVA_QUIET || process.env.NOVA_DEBUG) app.setPath('userData', app.getPath('userData') + '-test'); // its own taskbar entry and icon, not Electron's
 // tests: feed a WAV file in as the microphone
 if (process.env.NOVA_FAKE_MIC) {
   app.commandLine.appendSwitch('use-fake-device-for-media-stream');
@@ -305,9 +307,9 @@ ipcMain.on('shell', async (_e, m) => {
     const q = m.text.trim();
     // an address goes straight there; anything else is a request for Nova
     if (/^(https?:\/\/|www\.)|^[\w-]+(\.[\w-]+)+(\/\S*)?$/i.test(q)) t.view.webContents.loadURL(/^https?:/.test(q) ? q : 'https://' + q);
-    else toBrain({ type: 'heard', text: q });
+    else toBrain({ type: 'heard', text: q, typed: true });
   }
-  else if (m.type === 'say') toBrain({ type: 'heard', text: m.text });
+  else if (m.type === 'say') toBrain({ type: 'heard', text: m.text, typed: true });
   else if (m.type === 'back') t?.view.webContents.navigationHistory.goBack();
   else if (m.type === 'forward') t?.view.webContents.navigationHistory.goForward();
   else if (m.type === 'reload') t?.view.webContents.reload();
@@ -354,6 +356,9 @@ function keys(e, input) {
 let getSettings;
 app.whenReady().then(async () => {
   try { Object.assign(areas.local, JSON.parse(fs.readFileSync(STORE(), 'utf8'))); } catch {}
+  areas.local.wake ??= 'on'; // in the browser she waits for her name
+  // `npm run demo`: back to the settings the demo expects, keeping logins (they live in the browser profile, not here)
+  if (process.argv.includes('--demo-reset')) Object.assign(areas.local, { lang: 'en-IN', narrate: 'on', tier: 'cheap', rate: '1', wake: 'on', views: {} }), persist();
   for (const s of [session.defaultSession, session.fromPartition('persist:nova')]) {
     s.setUserAgent(UA);
     s.setPermissionRequestHandler((_wc, perm, cb) => cb(['media', 'fullscreen', 'clipboard-sanitized-write', 'clipboard-read'].includes(perm)));

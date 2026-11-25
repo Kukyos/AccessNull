@@ -19,7 +19,7 @@ function showUi(ui = {}) {
   if (st === 'heard') { said.className = 'said'; said.textContent = ui.text; novaLine.className = 'nova quiet'; novaLine.textContent = 'On it…'; return; }
   if (st === 'idle' && !ui.text) {
     novaLine.className = 'nova quiet';
-    novaLine.textContent = listening ? 'Listening. Say what you want done.' : 'Press Alt Shift A and say what you want done.';
+    novaLine.textContent = listening ? 'Listening. Start with “Nova,” then say what you want done.' : 'Press Alt Shift A, then say “Nova,” and what you want done.';
     return;
   }
   novaLine.className = 'nova';

@@ -6,7 +6,7 @@
   "main": "main.js",
   "type": "module",
   "private": true,
-  "scripts": { "start": "electron ." },
+  "scripts": { "start": "electron .", "demo": "electron . --demo-reset" },
   "dependencies": { "ws": "8.18.0" },
   "devDependencies": { "electron": "45.4.1" }
 }

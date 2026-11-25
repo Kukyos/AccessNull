@@ -1,6 +1,6 @@
 // AccessNull — the brain (Nova, the assistant). Lives in the service worker so a task survives page loads with no UI open.
 // Pages show a small glass pill (content.js); voice plays from an offscreen document (offscreen.js).
-import { run, activeTab, send, settle, matchLabel, needsConfirm, isEcho, look, goalLang, remodel, viewCommand, STOP } from './agent.js';
+import { run, activeTab, send, settle, matchLabel, needsConfirm, isEcho, look, goalLang, remodel, viewCommand, addressed, STOP } from './agent.js';
 
 const LANGS = { 'en-IN': 'English', 'hi-IN': 'Hindi', 'ta-IN': 'Tamil', 'kn-IN': 'Kannada', 'te-IN': 'Telugu' };
 // JS \b only knows ASCII letters, so Indian-script words sit outside it
@@ -118,6 +118,10 @@ async function setSetting(key, value) {
     const tier = /smart|best|sonnet|better|power/.test(v) ? 'smart' : 'cheap';
     await chrome.storage.local.set({ tier });
     msg = tier === 'smart' ? 'Okay, using the smarter model. It costs a bit more.' : 'Okay, using the faster, cheaper model.';
+  } else if (key === 'wake') {
+    const on = !/off|no|false|disable/.test(v);
+    await chrome.storage.local.set({ wake: on ? 'on' : 'off' });
+    msg = on ? 'Okay, start with my name when you want me.' : "Okay, I'll act on everything I hear.";
   } else if (key === 'rate') {
     const cur = (await getSettings()).rate;
     const rate = Math.min(1.6, Math.max(0.7, /fast|quick/.test(v) ? cur + 0.2 : /slow/.test(v) ? cur - 0.2 : +v || 1));
@@ -136,10 +140,13 @@ const SETTING_CMDS = [
   [/\b(use|switch to) (a |the )?(cheaper|faster|cheap|fast) model\b/, 'model', 'cheap'],
   [/\b(use|switch to) (a |the )?(smarter|better|best|smart|stronger) model\b/, 'model', 'smart'],
   [/^(speak|talk) (faster|quicker)\b/, 'rate', 'faster'],
+  [/^(listen to everything|always listen|you don'?t need (your|my) name|stop waiting for your name)\b/, 'wake', 'off'],
+  [/^(only (listen|respond|answer) when i say (your name|nova)|wait for your name|use your name)\b/, 'wake', 'on'],
   [/^(speak|talk) (slower|more slowly)\b/, 'rate', 'slower'],
 ];
 // phrases can carry two settings: "stop screen reading and just do what I say"
 const CLAUSES = t => t.split(/,|\band\b|\balso\b/).map(x => x.trim()).filter(Boolean);
+const voiceSettingMatch = async t => CLAUSES(t).some(c => SETTING_CMDS.some(([re]) => re.test(c)));
 async function voiceSetting(t) {
   const hits = [];
   for (const c of CLAUSES(t)) for (const [re, key, value] of SETTING_CMDS) if (re.test(c)) hits.push([key, value]);
@@ -157,13 +164,18 @@ function answer(value) {
 }
 
 // ---------- what the user said ----------
-async function heard(text) {
-  text = text.replace(/^\s*(hey|hi|ok|okay|hello)?[\s,]*nova\b[\s,.!]*/i, '') || text; // "Hey Nova, ..." — her name is optional
+async function heard(text, typed = false) {
+  // "Nova, …": with the name gate on (the browser's default) she only acts when spoken to, so a presenter
+  // or a family member talking nearby never starts a task. Stop, yes/no and answers to her questions need no name.
+  const rest = addressed(text);
+  const named = typed || rest !== null;
+  if (rest) text = rest;
   const t = text.toLowerCase().replace(/[.!?,;:]+$/, '').trim(); // some recognisers add punctuation
-  if (!t) return;
+  if (!t) return named && !running && speak('Yes?');
   trace('heard', { text });
-  if (!pending && (await voiceSetting(t))) return; // before stop: "stop narrating" is a setting, not a stop
-  if (STOP.test(t) && (running || speaking || reading?.token)) return stopAll();
+  if (STOP.test(t) && (named || running || speaking || reading?.token) && !(await voiceSettingMatch(t))) return stopAll();
+  if (!pending && !named && (await getSettings()).wake === 'on') return trace('ignored', { text });
+  if (!pending && (await voiceSetting(t))) return; // "stop narrating" is a setting, not a stop
   if (isEcho(t, lastSaid, speaking > 0, Date.now() - lastSpokeAt, pending?.kind === 'confirm')) return trace('echo', { text });
 
   if (pending?.kind === 'confirm') {
@@ -356,7 +368,7 @@ chrome.commands.onCommand.addListener(cmd => cmd === 'toggle-listen' && toggle()
 
 chrome.runtime.onMessage.addListener((msg, sender, reply) => {
   if (msg.target === 'offscreen') return;
-  if (msg.type === 'heard') heard(msg.text);
+  if (msg.type === 'heard') heard(msg.text, msg.typed);
   else if (msg.type === 'confirm') answer(!!msg.ok);
   else if (msg.type === 'stop') stopAll();
   else if (msg.type === 'close') setListening(false);
