@@ -9,29 +9,33 @@
 <link rel="stylesheet" href="shell.css">
 </head>
 <body>
-<header id="line">
-  <button id="orb" class="orb" aria-label="Talk to Nova (Alt+Shift+A)" aria-pressed="false"><i></i></button>
-  <div id="caption" role="status" aria-live="polite">
-    <p id="said" class="said"></p>
-    <p id="nova" class="nova">Press Alt Shift A and say what you want done.</p>
-  </div>
-  <div id="ask" class="ask" hidden>
-    <button id="yes" class="yes">Yes, go ahead</button>
-    <button id="no" class="no">No</button>
-  </div>
-  <nav class="tools" aria-label="Browser">
+<header id="chrome">
+  <nav id="tabs" class="tabs" role="tablist" aria-label="Tabs"></nav>
+  <div class="bar">
     <button id="back" class="icon" aria-label="Back" title="Back (Alt+Left)"><svg viewBox="0 0 20 20"><path d="M12.5 4 6.5 10l6 6"/></svg></button>
+    <button id="fwd" class="icon" aria-label="Forward" title="Forward"><svg viewBox="0 0 20 20"><path d="M7.5 4l6 6-6 6"/></svg></button>
     <button id="reload" class="icon" aria-label="Reload" title="Reload (F5)"><svg viewBox="0 0 20 20"><path d="M15.5 10a5.5 5.5 0 1 1-1.6-3.9M15.5 3.5v3.2h-3.2"/></svg></button>
     <form id="addr" class="addr" role="search">
       <label for="address" class="vh">Address, or ask Nova</label>
-      <input id="address" autocomplete="off" spellcheck="false" placeholder="Type to Nova, or an address">
+      <svg class="lock" viewBox="0 0 20 20" aria-hidden="true"><rect x="5" y="9" width="10" height="7.5" rx="1.6"/><path d="M7.3 9V6.8a2.7 2.7 0 0 1 5.4 0V9"/></svg>
+      <input id="address" autocomplete="off" spellcheck="false" placeholder="Ask Nova, or type an address">
     </form>
     <button id="look" class="icon look" aria-label="How this page looks" title="How this page looks"><span aria-hidden="true">Aa</span></button>
     <button id="gear" class="icon" aria-label="Nova settings" title="Nova settings"><svg viewBox="0 0 20 20"><path d="M3.5 6h8M15 6h1.5M3.5 14h2M9 14h7.5"/><circle cx="13" cy="6" r="1.9"/><circle cx="7" cy="14" r="1.9"/></svg></button>
-  </nav>
-  <div class="voice" aria-hidden="true"></div>
+  </div>
+  <div id="line" class="line">
+    <button id="orb" class="orb" aria-label="Talk to Nova (Alt+Shift+A)" aria-pressed="false"><i></i></button>
+    <div id="caption" role="status" aria-live="polite">
+      <p id="said" class="said"></p>
+      <p id="nova" class="nova">Press Alt Shift A and say what you want done.</p>
+    </div>
+    <div id="ask" class="ask" hidden>
+      <button id="yes" class="yes">Yes, go ahead</button>
+      <button id="no" class="no">No</button>
+    </div>
+    <div class="voice" aria-hidden="true"></div>
+  </div>
 </header>
-<nav id="tabs" class="tabs" aria-label="Tabs" hidden></nav>
 
 <div id="scrim" class="scrim" hidden></div>
 <section id="sheet-look" class="sheet" role="dialog" aria-labelledby="look-h" hidden>

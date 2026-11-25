@@ -14,8 +14,13 @@ const START = pathToFileURL(path.join(HERE, 'start.html')).href;
 const UA = `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${process.versions.chrome} Safari/537.36`;
 app.userAgentFallback = UA; // sites (WhatsApp, Google) turn away browsers they don't recognise
 app.setName('AccessNull');
+// tests: feed a WAV file in as the microphone
+if (process.env.NOVA_FAKE_MIC) {
+  app.commandLine.appendSwitch('use-fake-device-for-media-stream');
+  app.commandLine.appendSwitch('use-file-for-fake-audio-capture', process.env.NOVA_FAKE_MIC);
+}
 
-let win, shell, shellH = 76, sheetOpen = false;
+let win, shell, shellH = 150, sheetOpen = false;
 const log = (...a) => process.env.NOVA_DEBUG && console.log('[nova]', ...a);
 
 // ---------- storage: chrome.storage.local in a JSON file, session in memory ----------
@@ -68,7 +73,8 @@ const active = () => tabs.find(t => t.id === activeId);
 const tabOf = wc => tabs.find(t => t.view.webContents === wc);
 function info(t) {
   const wc = t.view.webContents;
-  return { id: t.id, windowId: 1, active: t.id === activeId, url: wc.getURL() || t.pending || START, title: wc.getTitle(), status: wc.isLoading() ? 'loading' : 'complete', lastAccessed: t.seen };
+  return { id: t.id, windowId: 1, active: t.id === activeId, url: wc.getURL() || t.pending || START, title: wc.getTitle(), status: wc.isLoading() ? 'loading' : 'complete', lastAccessed: t.seen,
+    favicon: t.favicon, canBack: wc.navigationHistory.canGoBack(), canForward: wc.navigationHistory.canGoForward() };
 }
 function newTab(url = START) {
   const view = new WebContentsView({
@@ -79,6 +85,8 @@ function newTab(url = START) {
   const wc = view.webContents;
   wc.setWindowOpenHandler(({ url }) => { wc.loadURL(url); return { action: 'deny' }; }); // no surprise windows: one journey, one tab
   for (const ev of ['did-start-loading', 'did-stop-loading', 'page-title-updated', 'did-navigate', 'did-navigate-in-page']) wc.on(ev, () => pushTabs());
+  wc.on('page-favicon-updated', (_e, icons) => { t.favicon = icons[0]; pushTabs(); });
+  wc.on('did-start-navigation', (_e, _u, inPage, main) => { if (main && !inPage) t.favicon = null; });
   wc.on('before-input-event', (e, input) => keys(e, input));
   win.contentView.addChildView(view);
   view.webContents.loadURL(url);
@@ -105,7 +113,7 @@ function closeTab(id) {
 function layout() {
   if (!win) return;
   const { width, height } = win.getContentBounds();
-  const top = shellH + (tabs.length > 1 ? 34 : 0);
+  const top = shellH;
   for (const t of tabs) {
     t.view.setVisible(t.id === activeId);
     t.view.setBounds({ x: 0, y: top, width, height: Math.max(0, height - top) });
@@ -160,9 +168,11 @@ globalThis.chrome = {
   },
   storage: { local: area('local'), session: area('session'), onChanged: event(storageListeners) },
   tabs: {
-    async query() { const t = active(); return t ? [info(t)] : []; },
+    async query(q = {}) { if (q.active) { const t = active(); return t ? [info(t)] : []; } return tabs.map(info); },
+    async create({ url }) { return info(newTab(url)); },
+    async remove(id) { closeTab(id); },
     async get(id) { const t = tabs.find(x => x.id === id); if (!t) throw new Error('no tab'); return info(t); },
-    async update(id, { url }) { const t = tabs.find(x => x.id === id); t.pending = url; t.view.webContents.loadURL(url).catch(() => {}); return info(t); },
+    async update(id, { url, active: on }) { const t = tabs.find(x => x.id === id); if (on) select(id); if (url) { t.pending = url; t.view.webContents.loadURL(url).catch(() => {}); } return info(t); },
     async goBack(id) { tabs.find(x => x.id === id)?.view.webContents.navigationHistory.goBack(); },
     sendMessage: (id, msg) => toPage(id, msg),
     async captureVisibleTab() { return 'data:image/jpeg;base64,' + (await active().view.webContents.capturePage()).toJPEG(60).toString('base64'); },
@@ -244,6 +254,7 @@ const ears = {
     ws.on('message', (d, bin) => {
       if (bin) return;
       const m = JSON.parse(d);
+      if (m.type !== 'usage.updated') log('ears <-', m.type, (m.text || '').slice(0, 80));
       if (m.type === 'session.ready') { this.ready = true; log('ears ready', JSON.stringify(m.route)); for (const b of this.backlog.splice(0)) ws.send(b); }
       else if (m.type === 'transcript.delta') { this.partial = (this.partial || '') + ' ' + m.text; shell.webContents.send('caption', { kind: 'partial', text: this.heardSoFar(m.text) }); }
       else if (m.type === 'transcript.final') this.final(m.text);
@@ -277,6 +288,7 @@ ipcMain.on('pcm', (_e, buf) => {
 });
 // the voice line heard the user stop talking: ask for the final words, hand them to the brain
 ipcMain.on('utterance-end', () => {
+  log('utterance end');
   if (!ears.ws || ears.ws.readyState !== 1) return;
   ears.committed = true;
   ears.ws.send(JSON.stringify({ type: 'input.commit' }));
@@ -346,10 +358,11 @@ app.whenReady().then(async () => {
     s.setPermissionRequestHandler((_wc, perm, cb) => cb(['media', 'fullscreen', 'clipboard-sanitized-write', 'clipboard-read'].includes(perm)));
   }
   win = new BaseWindow({ width: 1440, height: 900, minWidth: 720, minHeight: 480, title: 'AccessNull', icon: path.join(HERE, 'icon.ico'),
-    titleBarStyle: 'hidden', titleBarOverlay: { color: '#FBFBFD', symbolColor: '#1C1B22', height: 40 }, backgroundColor: '#FBFBFD' });
+    titleBarStyle: 'hidden', titleBarOverlay: { color: '#F1F0F6', symbolColor: '#1C1B22', height: 40 }, backgroundColor: '#FBFBFD' });
   shell = new WebContentsView({ webPreferences: { preload: path.join(HERE, 'shell-preload.cjs'), contextIsolation: true, sandbox: true } });
   shell.setBackgroundColor('#00000000');
   shell.webContents.on('before-input-event', (e, input) => keys(e, input));
+  shell.webContents.on('console-message', e => log('line:', e.message));
   win.contentView.addChildView(shell);
   await shell.webContents.loadFile(path.join(HERE, 'shell.html'));
   win.on('resize', layout);

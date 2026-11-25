@@ -3,7 +3,11 @@ const $ = id => document.getElementById(id);
 const said = $('said'), novaLine = $('nova'), body = document.body;
 
 // ---------- height: the page sits right under the line, however many lines the caption needs ----------
-new ResizeObserver(() => nova.send('height', { h: Math.ceil($('line').getBoundingClientRect().height) })).observe($('line'));
+new ResizeObserver(() => {
+  const h = Math.ceil($('chrome').getBoundingClientRect().height);
+  document.documentElement.style.setProperty('--chrome-h', h + 'px');
+  nova.send('height', { h });
+}).observe($('chrome'));
 
 // ---------- what the brain shows ----------
 let listening = false;
@@ -36,6 +40,7 @@ $('orb').onclick = () => nova.send('toggle');
 $('yes').onclick = () => nova.send('confirm', { ok: true });
 $('no').onclick = () => nova.send('confirm', { ok: false });
 $('back').onclick = () => nova.send('back');
+$('fwd').onclick = () => nova.send('forward');
 $('reload').onclick = () => nova.send('reload');
 $('caption').onclick = () => $('address').focus();
 addEventListener('keydown', e => { if (e.key === 'Escape') { closeSheets(); nova.send('stop'); } });
@@ -58,18 +63,25 @@ nova.on('focus-address', () => $('address').focus());
 nova.on('tabs', ({ tabs, activeId }) => {
   const cur = tabs.find(t => t.id === activeId);
   pageUrl = cur?.url || '';
-  $('address').placeholder = hostOf(pageUrl) || 'Type to Nova, or an address';
-  const bar = $('tabs');
-  bar.hidden = tabs.length < 2;
-  bar.replaceChildren(...tabs.map(t => {
-    const b = document.createElement('button');
+  if (document.activeElement !== $('address')) $('address').placeholder = /^https?:/.test(pageUrl) ? pageUrl.replace(/^https:\/\/(www\.)?/, '').replace(/\/$/, '') : 'Ask Nova, or type an address';
+  $('back').disabled = !cur?.canBack;
+  $('fwd').disabled = !cur?.canForward;
+  $('tabs').replaceChildren(...tabs.map(t => {
+    const b = document.createElement('div');
+    b.className = 'tab' + (t.status === 'loading' ? ' loading' : '');
     b.setAttribute('role', 'tab');
+    b.tabIndex = 0;
     b.setAttribute('aria-selected', String(t.id === activeId));
-    b.innerHTML = '<span class="t"></span><span class="x" aria-label="Close tab">×</span>';
-    b.querySelector('.t').textContent = t.title || hostOf(t.url) || 'New tab';
-    b.onclick = e => nova.send(e.target.classList.contains('x') ? 'close' : 'select', { id: t.id });
+    const icon = t.favicon ? Object.assign(document.createElement('img'), { src: t.favicon, alt: '' }) : Object.assign(document.createElement('span'), { className: 'dot' });
+    icon.onerror = () => icon.replaceWith(Object.assign(document.createElement('span'), { className: 'dot' }));
+    const title = Object.assign(document.createElement('span'), { className: 't', textContent: /^https?:/.test(t.url) ? t.title || hostOf(t.url) : 'New tab' });
+    const x = Object.assign(document.createElement('button'), { className: 'x', textContent: '×', ariaLabel: 'Close tab', onclick: e => { e.stopPropagation(); nova.send('close', { id: t.id }); } });
+    b.append(icon, title, x);
+    b.onclick = () => nova.send('select', { id: t.id });
+    b.onkeydown = e => e.key === 'Enter' && nova.send('select', { id: t.id });
+    b.onauxclick = e => e.button === 1 && nova.send('close', { id: t.id });
     return b;
-  }), Object.assign(document.createElement('button'), { className: 'add', textContent: '+', ariaLabel: 'New tab', onclick: () => nova.send('newTab') }));
+  }), Object.assign(document.createElement('button'), { className: 'newtab', textContent: '+', ariaLabel: 'New tab (Ctrl+T)', onclick: () => nova.send('newTab') }));
   if (!$('sheet-look').hidden) nova.wantView();
 });
 
@@ -174,12 +186,12 @@ async function startMic() {
       const thresh = Math.max(0.018, floor * 2.8) * (playingId ? 1.8 : 1); // her own voice leaks a little even with echo cancelling
       document.documentElement.style.setProperty('--level', Math.min(1, rms * 9).toFixed(3));
       if (rms > thresh) {
-        if (!talking) { talking = true; userTalking = true; if (audio) audio.volume = 0.35; for (const p of pre.splice(0)) nova.pcm(p); }
+        if (!talking) { console.log('speech start', rms.toFixed(3), thresh.toFixed(3)); talking = true; userTalking = true; if (audio) audio.volume = 0.35; for (const p of pre.splice(0)) nova.pcm(p); }
         quiet = 0;
         nova.pcm(pcm);
       } else if (talking) {
         nova.pcm(pcm);
-        if (++quiet >= 7) { // 0.7 s of quiet: the sentence is over
+        if (++quiet >= 6) { // 0.6 s of quiet: the sentence is over
           talking = false; userTalking = false; quiet = 0;
           if (audio) audio.volume = 1;
           nova.utteranceEnd();

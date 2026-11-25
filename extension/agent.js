@@ -32,6 +32,7 @@ Reply with ONLY one JSON object:
    {"type":"scroll","dir":"down"|"up"|"top"|"bottom"}
    {"type":"navigate","url":"https://..."}                  // go straight to a site you know
    {"type":"back"}
+   {"type":"tab","op":"new"|"switch"|"close","url":"https://...","n":N}   // tabs: open a site in a new tab, switch to tab number N (counting from 1, left to right), close the current tab
    {"type":"read"}                                         // get the full page text when the snapshot text is not enough
    {"type":"look"}                                         // get a description of a screenshot, for unlabeled or visual pages
    {"type":"readaloud"}                                    // read the page's main text aloud to the user, from where they are. Use when they want an article, story or book read to them (navigate to it first)
@@ -50,6 +51,7 @@ Rules:
 - Never type passwords, card numbers, CVV or OTPs, even if the user tells you them, and never ask permission to. For a sign-in: use the site's own email/username form (not "Continue with Google/Apple/Facebook"), fill the email or username, press Continue/Next if the password box is on the next page, and once the password box is on screen finish with "done" telling the user the password box is ready and they should type it themselves, because you never handle passwords.
 - Elements marked offscreen are fine to click. If what you need is not in the list, scroll or read.
 - If an action failed, try a different approach, do not repeat the same failing action.
+- An advert playing before the right video means the goal is reached: press Skip once if it is offered, otherwise finish with "done" (say the video starts after the ad). Never wait around reading the page for an ad to end.
 - Play/Pause buttons toggle: click a play button once, then check page.media. If it still says nothing is playing after two different tries, finish with "done" saying playback did not start (the browser may block protected music) instead of clicking more.
 - Cookie or sign-up banners covering the page: close or decline them first (decline non-essential cookies).
 - Only use "done" when the CURRENT page proves the goal is achieved (the video page is open and media says playing, the item shows in the cart, the answer is in the page text). Never claim something happened that the page does not show; if unsure, check first.
@@ -65,7 +67,7 @@ export async function decide({ goal, history, snap, settings }) {
     ...(io_extra(history)),
     // bulky page_text / screen only matter right after the read/look that produced them
     steps_so_far: history.slice(-10).map((h, k, a) => (k === a.length - 1 ? h : { ...h, page_text: undefined, screen: undefined })),
-    page: { url: snap.url, title: snap.title, scroll: snap.scroll, media: snap.media, text: snap.text },
+    page: { url: snap.url, title: snap.title, scroll: snap.scroll, media: snap.media, text: snap.text, ...(snap.tabs?.length > 1 && { open_tabs: snap.tabs }) },
     elements: compact(snap.elements),
   };
   const messages = [
@@ -361,6 +363,7 @@ export async function run(goal, settings, io) {
       return io.say("Sorry, I can't read this page.");
     }
 
+    snap.tabs = (await chrome.tabs.query({ currentWindow: true }).catch(() => [])).map((t, k) => `${k + 1}${t.active ? ' (this one)' : ''}: ${(t.title || t.url || '').slice(0, 50)}`);
     let d;
     try {
       io.log('think', `Step ${step}: thinking…`);
@@ -392,7 +395,9 @@ export async function run(goal, settings, io) {
     // confirm=off is the user's own spoken choice ("just do what I say"); secrets above are never negotiable
     const gated = settings.confirm !== 'off' && needsConfirm(a, el);
     // a gated step speaks its line once, inside the question
-    if (sayKey && !spoken.has(sayKey) && settings.narrate !== 'off' && !gated && a.type !== 'done' && a.type !== 'ask') io.say(d.say);
+    // narration only on steps that move things forward; reading, scrolling and looking happen quietly
+    const progress = ['navigate', 'click', 'type', 'fill', 'select', 'back', 'readaloud', 'view'].includes(a.type);
+    if (sayKey && !spoken.has(sayKey) && settings.narrate !== 'off' && !gated && progress) io.say(d.say);
     if (sayKey) spoken.add(sayKey);
 
     if (a.type === 'set') {
@@ -439,6 +444,11 @@ export async function run(goal, settings, io) {
       } else if (a.type === 'back') {
         await chrome.tabs.goBack(tab.id);
         result = { ok: true, did: 'went back' };
+      } else if (a.type === 'tab') {
+        const all = await chrome.tabs.query({ currentWindow: true });
+        if (a.op === 'new') await chrome.tabs.create({ url: a.url || 'about:blank' }), (result = { ok: true, did: `opened ${a.url || 'a new tab'} in a new tab` });
+        else if (a.op === 'close') await chrome.tabs.remove(tab.id), (result = { ok: true, did: 'closed the tab' });
+        else { const t = all[(a.n || 1) - 1]; result = t ? (await chrome.tabs.update(t.id, { active: true }), { ok: true, did: `switched to tab ${a.n}: ${t.title}` }) : { ok: false, error: `there are only ${all.length} tabs` }; }
       } else if (a.type === 'view') {
         const r = await remodel(tab.id, settings, a);
         result = { ok: r.ok, did: r.say, error: r.say };
@@ -461,6 +471,7 @@ export async function run(goal, settings, io) {
     const loop = seen[key] > 1 ? ` WARNING: you have done exactly this ${seen[key]} times on this page. Do something different, or finish with "done" from your notes.` : '';
     history.push({ step, action: a, result: (result.ok ? result.did : `FAILED: ${result.error}`) + loop, ...(result.text && { page_text: result.text }), ...(result.description && { screen: result.description }) });
     if (['click', 'navigate', 'back'].includes(a.type) || a.submit) await settle(tab.id);
+    if (a.type === 'tab') await settle((await activeTab()).id);
   }
   io.say('That took too many steps, so I stopped. Try a more specific request.');
 }
