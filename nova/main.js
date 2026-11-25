@@ -14,6 +14,7 @@ const START = pathToFileURL(path.join(HERE, 'start.html')).href;
 const UA = `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${process.versions.chrome} Safari/537.36`;
 app.userAgentFallback = UA; // sites (WhatsApp, Google) turn away browsers they don't recognise
 app.setName('AccessNull');
+app.setAppUserModelId?.('AccessNull.Nova'); // its own taskbar entry and icon, not Electron's
 // tests: feed a WAV file in as the microphone
 if (process.env.NOVA_FAKE_MIC) {
   app.commandLine.appendSwitch('use-fake-device-for-media-stream');
