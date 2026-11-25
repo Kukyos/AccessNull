@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AccessNull</title>
+<link rel="icon" href="icon.png">
+<link rel="stylesheet" href="home.css">
+</head>
+<body>
+<main>
+  <section class="hero">
+    <button id="talk" class="orb" aria-label="Talk to Nova (Alt+Shift+A)"><span></span></button>
+    <h1 id="hello">Hi, I'm Nova.</h1>
+    <p class="sub" id="status">Say what you want done. Press <kbd>Alt</kbd> <kbd>Shift</kbd> <kbd>A</kbd> or tap the orb.</p>
+  </section>
+
+  <section class="try" aria-labelledby="try-h">
+    <h2 id="try-h">Try saying</h2>
+    <ul>
+      <li><b>“Play the latest video from Marques Brownlee.”</b><span>YouTube</span></li>
+      <li><b>“Find a steel bottle under ₹500 and check out.”</b><span>Amazon · asks before paying</span></li>
+      <li><b>“Are the SIH results out? Check Reddit too.”</b><span>Research across sites</span></li>
+      <li><b>“Open Pride and Prejudice and read it to me.”</b><span>Read aloud</span></li>
+      <li><b>“What's on the screen?”</b><span>Describes photos and pages</span></li>
+      <li><b>“हिंदी में बात करो”</b><span>Hindi · தமிழ் · ಕನ್ನಡ · తెలుగు</span></li>
+    </ul>
+  </section>
+
+  <section class="card" aria-labelledby="how-h">
+    <h2 id="how-h">How Nova works for you</h2>
+    <p class="hint">Change any of these by voice too: “speak Tamil”, “just do what I say”, “stop narrating”, “use a smarter model”, “speak faster”.</p>
+    <div class="rows">
+      <label class="row"><span><b>Language</b><small>She listens and answers in it</small></span>
+        <select id="lang">
+          <option value="en-IN">English</option><option value="hi-IN">हिन्दी Hindi</option><option value="ta-IN">தமிழ் Tamil</option>
+          <option value="kn-IN">ಕನ್ನಡ Kannada</option><option value="te-IN">తెలుగు Telugu</option>
+        </select></label>
+      <label class="row"><span><b>Ask before anything I can't undo</b><small>Paying, ordering, sending, deleting. Passwords are always yours to type</small></span>
+        <input type="checkbox" role="switch" id="confirm"></label>
+      <label class="row"><span><b>Tell me what you're doing</b><small>Off: she works quietly and only speaks the answer</small></span>
+        <input type="checkbox" role="switch" id="narrate"></label>
+      <div class="row"><span><b>Brain</b><small>Routed by Speko to the best model, with automatic failover</small></span>
+        <div class="seg" role="radiogroup" aria-label="Model">
+          <button role="radio" data-tier="cheap">Fast</button><button role="radio" data-tier="smart">Smart</button>
+        </div></div>
+      <label class="row"><span><b>Speaking speed</b><small id="rateVal">1.0×</small></span>
+        <input type="range" id="rate" min="0.7" max="1.6" step="0.1"></label>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="act-h">
+    <h2 id="act-h">What Nova did</h2>
+    <ol id="activity"><li class="empty">Nothing yet. Ask her for something.</li></ol>
+    <a class="more" href="options.html">Full transcript and keys</a>
+  </section>
+</main>
+<script type="module" src="home.js"></script>
+<script src="content.js"></script>
+</body>
+</html>

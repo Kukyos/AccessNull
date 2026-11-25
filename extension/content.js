@@ -73,8 +73,10 @@
       title: document.title,
       scroll: { y: Math.round(scrollY), max: Math.round(document.documentElement.scrollHeight - innerHeight) },
       elements,
-      media: [...document.querySelectorAll('video,audio')].filter(m => !m.paused && !m.ended && m.currentTime > 0).length
-        ? 'a video/audio is playing on this page' : 'nothing is playing',
+      // Spotify & co. play from a media element that is never put in the page: the media session still says so
+      media: [...document.querySelectorAll('video,audio')].some(m => !m.paused && !m.ended && m.currentTime > 0) || navigator.mediaSession?.playbackState === 'playing'
+        ? `playing${navigator.mediaSession?.metadata?.title ? `: "${navigator.mediaSession.metadata.title}" by ${navigator.mediaSession.metadata.artist}` : ''}`
+        : 'nothing is playing',
       text: pageText(3500),
     };
   }
@@ -295,7 +297,7 @@
       <div class="wrap" role="status" aria-live="polite">
         <div class="pill"><div class="orb" aria-hidden="true"></div><div class="text"></div>
           <div class="btns"><button class="yes">Yes</button><button class="no">No</button></div>
-          <button class="x" aria-label="Close AccessNull">×</button></div></div>`;
+          <button class="x" aria-label="Close Nova">×</button></div></div>`;
     pillEl = root.querySelector('.wrap');
     root.querySelector('.yes').onclick = () => chrome.runtime.sendMessage({ type: 'confirm', ok: true });
     root.querySelector('.no').onclick = () => chrome.runtime.sendMessage({ type: 'confirm', ok: false });
@@ -339,6 +341,11 @@
     rec.onend = () => listening && rec && setTimeout(() => { try { rec.start(); } catch {} }, 150);
     try { rec.start(); } catch {}
   }
+
+  // "speak Hindi": the brain stores the new language; restart the recogniser in it (onend starts it again)
+  globalThis.chrome?.storage?.onChanged?.addListener(c => {
+    if (c.lang && rec) { rec.lang = c.lang.newValue || 'en-IN'; try { rec.stop(); } catch {} }
+  });
 
   addEventListener('keydown', e => e.key === 'Escape' && listening && chrome.runtime.sendMessage({ type: 'stop' }));
 

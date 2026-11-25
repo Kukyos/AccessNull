@@ -1,21 +1,49 @@
 {
   "manifest_version": 3,
   "name": "AccessNull",
-  "version": "2.1.0",
-  "description": "Say what you want done on any website. AccessNull does it, tells you what's happening, and asks before anything you can't undo.",
-  "permissions": ["storage", "tabs", "scripting", "activeTab", "offscreen"],
-  "host_permissions": ["<all_urls>"],
-  "background": { "service_worker": "background.js", "type": "module" },
-  "content_scripts": [
-    { "matches": ["<all_urls>"], "js": ["content.js"], "run_at": "document_idle" }
+  "version": "3.0.0",
+  "description": "Say what you want done on any website. Nova, its assistant, does it, tells you what's happening, and asks before anything you can't undo.",
+  "permissions": [
+    "storage",
+    "tabs",
+    "scripting",
+    "activeTab",
+    "offscreen"
   ],
-  "action": { "default_title": "AccessNull: start or stop listening (Alt+Shift+A)" },
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "Nova: start or stop listening (Alt+Shift+A)"
+  },
   "options_page": "options.html",
-  "icons": { "128": "icon.png" },
+  "icons": {
+    "128": "icon.png"
+  },
   "commands": {
     "toggle-listen": {
-      "suggested_key": { "default": "Alt+Shift+A" },
+      "suggested_key": {
+        "default": "Alt+Shift+A"
+      },
       "description": "Start or stop listening"
     }
+  },
+  "chrome_url_overrides": {
+    "newtab": "home.html"
   }
 }

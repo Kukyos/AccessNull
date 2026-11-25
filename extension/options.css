@@ -11,3 +11,8 @@ input, select { font: inherit; color: var(--ink); background: transparent; paddi
 input:focus-visible, select:focus-visible, button:focus-visible { outline: 3px solid #0a84ff; outline-offset: 1px; }
 button { align-self: flex-start; font: 600 15px/1 inherit; padding: 12px 22px; border: 0; border-radius: 20px; background: var(--ink); color: var(--bg); cursor: pointer; }
 #saved { color: #30d158; font-size: 14px; }
+.tx { margin-top: 32px; }
+.tx h2 { font-size: 24px; letter-spacing: -.02em; margin: 0 0 4px; }
+.tx .row { display: flex; gap: 10px; margin-bottom: 12px; }
+.ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+#log { background: var(--card); border-radius: 14px; padding: 16px; max-height: 420px; overflow: auto; font: 12px/1.55 ui-monospace, Consolas, monospace; white-space: pre-wrap; margin: 0; }

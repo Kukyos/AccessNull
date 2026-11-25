@@ -50,3 +50,18 @@ assert.equal(needsConfirm({ type: 'click', risky: true }, { label: 'Add to Cart'
 assert.equal(needsConfirm({ type: 'click', risky: true }, { label: 'Proceed to Buy' }), true, 'model risk still gates other buttons');
 assert.equal(needsConfirm({ type: 'click' }, { label: 'Place your order' }), true);
 console.log('safe list ok');
+
+import { STOP } from './agent.js';
+for (const s of ['stop', 'रुको', 'बस करो', 'स्टॉप', 'நிறுத்து', 'ఆపు']) assert.ok(STOP.test(s), `stop: ${s}`);
+assert.equal(STOP.test('bastille day facts'), false, 'stop needs a whole word');
+console.log('stop words ok');
+assert.equal(isEcho('what is on the screen right now', 'checking reddit discussions about the results now.', true, 0, false), false, 'a real question while we talk is not echo');
+assert.equal(isEcho('checking reddit discussions about the results', 'checking reddit discussions about the results now.', true, 0, false), true, 'our own line is echo');
+console.log('echo words ok');
+
+import { goalLang } from './agent.js';
+assert.match(goalLang('YouTube pe Arijit Singh ka latest gaana chalao'), /^Hindi/);
+assert.equal(goalLang('ताजमहल किसने बनवाया'), 'Hindi');
+assert.equal(goalLang('play the latest video from Marques Brownlee'), null, 'English stays English');
+assert.equal(goalLang('add a kurta to my cart and check out'), null, 'one Hindi-looking word is not Hinglish');
+console.log('goal language ok');
