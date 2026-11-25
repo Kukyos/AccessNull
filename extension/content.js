@@ -78,6 +78,7 @@
         ? `playing${navigator.mediaSession?.metadata?.title ? `: "${navigator.mediaSession.metadata.title}" by ${navigator.mediaSession.metadata.artist}` : ''}`
         : 'nothing is playing',
       text: pageText(3500),
+      ...((view.presets.length || view.hide.length) && { view: `restyled for the user: ${view.presets.join(', ') || 'no style'}; ${view.hide.length} parts hidden (use view original to see everything)` }),
     };
   }
 
@@ -246,6 +247,86 @@
     }
   }
 
+
+  // ---------- page remodel: Nova restyles the page for this user (presets) and hides what they don't need ----------
+  // Only CSS is added, never nodes removed, so single-page apps that re-render keep the look; "original" takes it all away.
+  const PRESETS = {
+    bigger: 'html{zoom:1.3!important}',
+    huge: 'html{zoom:1.7!important}',
+    contrast: '*:not(img):not(video):not(svg):not(path){background-color:#000!important;color:#fff!important;border-color:#777!important;box-shadow:none!important;text-shadow:none!important;background-image:none!important} a,a *{color:#ffd60a!important} input,select,textarea{border:2px solid #fff!important} img,video{filter:contrast(1.1)}',
+    dark: 'html{filter:invert(.92) hue-rotate(180deg)!important;background:#fff!important} img,video,picture,svg,iframe,[style*="background-image"]{filter:invert(1) hue-rotate(180deg)!important}',
+    dyslexia: 'body,body *{font-family:"Comic Sans MS","Verdana",sans-serif!important;letter-spacing:.06em!important;word-spacing:.18em!important;line-height:1.8!important} p,li{max-width:70ch!important}',
+    calm: '*,*::before,*::after{animation:none!important;transition:none!important} img,video,picture,iframe,[role=img],figure,[class*=ad-],[id*=ad-],[class*=banner],[class*=carousel]{display:none!important}',
+    focus: ':focus,:focus-visible{outline:4px solid #ffd60a!important;outline-offset:3px!important;box-shadow:0 0 0 7px #000!important}',
+    spacious: 'p,li{margin-bottom:1em!important;line-height:1.9!important} a,button{padding:.35em .5em!important}',
+  };
+  let view = { presets: [], hide: [], keep: '' };
+  function applyView(v) {
+    view = { presets: (v?.presets || []).filter(k => PRESETS[k]), hide: v?.hide || [], keep: v?.keep || '' };
+    let style = document.getElementById('nova-view');
+    if (!view.presets.length && !view.hide.length) return style?.remove(), view;
+    if (!style) (style = Object.assign(document.createElement('style'), { id: 'nova-view' })), document.documentElement.appendChild(style);
+    style.textContent = view.presets.map(k => PRESETS[k]).join('\n') + '\n' + view.hide.map(sel => `${sel}{display:none!important}`).join('\n');
+    return view;
+  }
+  // a short, stable-enough selector: id if it has one, else tag + classes + position under the nearest id/body
+  function selectorFor(el) {
+    const parts = [];
+    for (let e = el; e && e !== document.body && parts.length < 6; e = e.parentElement) {
+      if (e.id && /^[a-zA-Z][\w-]*$/.test(e.id)) { parts.unshift('#' + e.id); break; }
+      let p = e.tagName.toLowerCase();
+      const cls = [...e.classList].filter(c => /^[a-zA-Z][\w-]*$/.test(c) && !/\d{3,}/.test(c)).slice(0, 2);
+      if (cls.length) p += '.' + cls.join('.');
+      const sib = e.parentElement ? [...e.parentElement.children].filter(x => x.tagName === e.tagName) : [];
+      if (sib.length > 1) p += `:nth-of-type(${sib.indexOf(e) + 1})`;
+      parts.unshift(p);
+    }
+    return parts.join(' > ');
+  }
+  // the page as blocks the model can keep or hide by number: big wrappers are split into their parts
+  // (so a results grid becomes its cards, and "hide the sponsored ones" works), small leaves stay whole
+  let blockSeq = 0;
+  function sections() {
+    const vp = innerWidth * innerHeight;
+    const area = el => { const r = el.getBoundingClientRect(); return r.width * r.height; };
+    const shown = el => { const cs = getComputedStyle(el); return cs.display !== 'none' && cs.visibility !== 'hidden'; };
+    const big = el => !el.closest('#accessnull-root,#nova-view') && shown(el) && area(el) >= vp * 0.012;
+    const leaves = [];
+    // `top` is the outermost box of a chain of single-child wrappers: hiding that one lets the grid close up
+    (function walk(el, depth, top) {
+      const kids = [...el.children].filter(big);
+      const a = area(el);
+      if (depth < 9 && kids.length === 1 && area(kids[0]) > a * 0.8) return walk(kids[0], depth + 1, top); // a plain wrapper
+      if (depth < 9 && kids.length >= 2 && (el === document.body || a > vp * 0.35)) return kids.forEach(k => walk(k, depth + 1, k));
+      if (el !== document.body) leaves.push(top);
+    })(document.body, 0, document.body);
+    // in reading order (top to bottom, then left to right): sites often put the sidebar after the results in the code
+    const pos = new Map(leaves.map(el => { const r = el.getBoundingClientRect(); return [el, [Math.round((r.top + scrollY) / 40), r.left]]; }));
+    leaves.sort((a, b) => pos.get(a)[0] - pos.get(b)[0] || pos.get(a)[1] - pos.get(b)[1]);
+    return leaves.slice(0, 110).map((el, k) => {
+      const r = el.getBoundingClientRect();
+      el.dataset.novaBlock ||= ++blockSeq; // a handle unique on this page (class selectors repeat across card grids), kept across re-maps so earlier hides stay put
+      const fields = [...el.querySelectorAll('input:not([type=hidden]),select,textarea,[role=searchbox]')].slice(0, 3).map(f => labelFor(f) || f.type).filter(Boolean);
+      const text = clean(el.innerText);
+      return {
+        n: k + 1, sel: `[data-nova-block="${el.dataset.novaBlock}"]`, tag: el.tagName.toLowerCase(), role: el.getAttribute('role') || '',
+        heading: clean(el.querySelector('h1,h2,h3,[role=heading]')?.innerText).slice(0, 50), text: text.slice(0, 70),
+        where: `${Math.round(r.left)},${Math.round(r.top + scrollY)} ${Math.round(r.width)}x${Math.round(r.height)}`,
+        links: el.querySelectorAll('a').length, images: el.querySelectorAll('img,video').length,
+        ...(fields.length && { fields }), ...(/\b(sponsored|advertisement|\bad\b)/i.test(text.slice(0, 300)) && { sponsored: true }),
+      };
+    });
+  }
+
+  // this user's saved look for this site comes back on every visit
+  globalThis.chrome?.storage?.local?.get('views').then(({ views }) => {
+    const v = views?.[location.hostname];
+    if (!v) return;
+    applyView({ presets: v.presets, hide: [] });
+    // what to keep is re-worked for each page (the cards on a new search are new): ask the brain once the page has settled
+    if (v.keep) setTimeout(() => chrome.runtime.sendMessage({ type: 'reapplyView', keep: v.keep }), 1200);
+  }).catch(() => {});
+
   // ---------- the glass pill: the only UI a user ever sees ----------
   // Shadow DOM so the site's CSS can't touch it; bottom-centre so it never covers the page's own controls for long.
   const PILL_CSS = `
@@ -308,6 +389,7 @@
   const IDLE_TEXT = 'Listening…';
   let hideTimer = 0;
   function render(ui, visible = true) {
+    if (globalThis.__NOVA__) return; // the Nova browser shows this in its own strip
     const w = pill();
     clearTimeout(hideTimer);
     if (!visible) return w.classList.remove('on');
@@ -325,6 +407,7 @@
   // ponytail: recognition runs in the page, so Chrome asks for the mic once per site; ElevenLabs Scribe in an offscreen doc removes that.
   let listening = false, rec = null;
   function listen(on) {
+    if (globalThis.__NOVA__) return; // the Nova browser listens itself (streaming speech, no per-site prompt)
     listening = on;
     if (!on) return rec?.stop(), (rec = null);
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -368,6 +451,8 @@
         else if (msg.type === 'snapshot') reply(snapshot(msg));
         else if (msg.type === 'act') reply(await act(msg.action));
         else if (msg.type === 'clearMarks') reply(clearMarks());
+        else if (msg.type === 'sections') reply(sections());
+        else if (msg.type === 'applyView') reply(msg.view ? applyView(msg.view) : view);
         else if (msg.type === 'label') reply({ label: refs[msg.i] ? labelFor(refs[msg.i]) : null, secret: refs[msg.i] ? isSecret(refs[msg.i]) : false });
       } catch (e) {
         reply({ ok: false, error: String(e.message || e) });
@@ -376,5 +461,5 @@
     return true;
   });
 
-  window.__accessnull = { snapshot, act, labelFor, setValue, isSecret }; // for test.html
+  window.__accessnull = { snapshot, act, labelFor, setValue, isSecret, sections, applyView }; // for test.html
 })();

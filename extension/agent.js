@@ -35,6 +35,7 @@ Reply with ONLY one JSON object:
    {"type":"read"}                                         // get the full page text when the snapshot text is not enough
    {"type":"look"}                                         // get a description of a screenshot, for unlabeled or visual pages
    {"type":"readaloud"}                                    // read the page's main text aloud to the user, from where they are. Use when they want an article, story or book read to them (navigate to it first)
+   {"type":"view","style":["bigger"|"huge"|"contrast"|"dark"|"dyslexia"|"calm"|"focus"|"spacious"|"original"],"keep":"...","save":true|false}   // change how the page LOOKS for this user: style presets, and/or keep only what they describe and hide the rest. save=true when they want this site to always look like this. "original" removes every change
    {"type":"set","key":"lang|confirm|narrate|model|rate","value":"..."}   // the user changes how you work: lang = en-IN|hi-IN|ta-IN|kn-IN|te-IN; confirm = on|off (off = no yes/no questions before irreversible steps); narrate = on|off (off = only answers and questions are spoken); model = cheap|smart; rate = 0.8-1.6 speech speed. Use done right after if that was all they asked
    {"type":"ask","question":"..."}                         // ask the user when the goal is ambiguous or you need their choice
    {"type":"done","answer":"..."}                          // goal reached: spoken to the user. Answer EVERY part of the question (who AND when AND where…) in one or two short sentences, with the exact facts from the page
@@ -71,15 +72,20 @@ export async function decide({ goal, history, snap, settings }) {
     { role: 'system', content: SYSTEM.replace('{LANG}', settings.langName || 'English') },
     { role: 'user', content: JSON.stringify(user) },
   ];
+  const r = await complete(settings, messages);
+  return { ...parseDecision(r.text), via: r.via };
+}
+
+// the planner's model with one immediate switch to the backup: a live user can't wait on a flaky provider
+export async function complete(settings, messages) {
   const t0 = Date.now();
   try {
-    const d = await chat(settings.apiBase, settings.apiKey, settings.model, messages);
-    return { ...d, via: `${d.via} ${Date.now() - t0}ms` };
+    const r = await chat(settings.apiBase, settings.apiKey, settings.model, messages);
+    return { ...r, via: `${r.via} ${Date.now() - t0}ms` };
   } catch (e) {
-    // a live user can't wait on a flaky provider: one immediate switch to the backup planner
     if (!settings.fallbackKey) throw e;
-    const d = await chat(settings.fallbackBase, settings.fallbackKey, settings.fallbackModel, messages);
-    return { ...d, via: `fallback ${d.via} ${Date.now() - t0}ms (primary: ${e.message.slice(0, 60)})` };
+    const r = await chat(settings.fallbackBase, settings.fallbackKey, settings.fallbackModel, messages);
+    return { ...r, via: `fallback ${r.via} ${Date.now() - t0}ms (primary: ${e.message.slice(0, 60)})` };
   }
 }
 
@@ -101,7 +107,7 @@ async function chat(base = 'https://api.groq.com/openai/v1', key, model = 'llama
     });
     if (!res.ok) throw new Error(`AI ${res.status}: ${(await res.text()).slice(0, 160)}`);
     const data = await res.json();
-    return { ...parseDecision(data.choices[0].message.content), via: res.headers.get('speko-provider') ? `speko→${res.headers.get('speko-provider')}/${res.headers.get('speko-model')}` : model };
+    return { text: data.choices[0].message.content, via: res.headers.get('speko-provider') ? `speko→${res.headers.get('speko-provider')}/${res.headers.get('speko-model')}` : model };
   } finally {
     clearTimeout(timer);
   }
@@ -176,6 +182,83 @@ export function goalLang(goal) {
   for (const [re, name] of SCRIPTS) if (re.test(goal)) return name;
   if ((goal.toLowerCase().match(HINGLISH) || []).length >= 3) return 'Hindi (the user spoke Hinglish: reply in simple Hindi, Devanagari script)';
   return null;
+}
+
+// ---------- remodel: restyle the page and keep only what the user wants, remembered per site ----------
+export const VIEW_STYLES = ['bigger', 'huge', 'contrast', 'dark', 'dyslexia', 'calm', 'focus', 'spacious'];
+const KEEP_PROMPT = `You simplify a web page for a person with a disability. You get what they want to keep, and the page split into numbered blocks (tag, role, heading, a bit of text, position and size, links, images, form fields, sponsored).
+Choose the blocks to HIDE so only what they want remains. Anything they name MUST stay: if they mention a search box, keep the block whose fields include it, even if that block also holds a menu. Keep what they need to use it (the main content, its heading). Hide sponsored blocks, ads, banners, sidebars, footers, menus, recommendations and pop-ups unless they asked for them. Blocks are listed top to bottom with their position (x,y width x height). Never hide everything.
+Reply with ONLY JSON: {"hide":[block numbers],"say":"one short spoken sentence of what is left, in {LANG}"}`;
+
+export async function remodel(tabId, settings, { style = [], keep = '', save = false, presets, unsave = false }) {
+  const tab = await chrome.tabs.get(tabId);
+  const host = new URL(tab.url).hostname;
+  const cur = (await send(tabId, { type: 'applyView', view: null }).catch(() => null)) || { presets: [], hide: [] };
+  let next = { presets: [...cur.presets], hide: [...cur.hide], keep: cur.keep || '' };
+  let say = '';
+  style = [].concat(style || []);
+  if (Array.isArray(presets)) next.presets = presets.filter(k => VIEW_STYLES.includes(k)); // the look sheet sends the full set
+  if (style.includes('original')) next = { presets: [], hide: [], keep: '' }, (say = 'Back to the original page.');
+  for (const k of style) if (VIEW_STYLES.includes(k) && !next.presets.includes(k)) next.presets.push(k);
+  // bigger and huge, dark and contrast: the newer one wins
+  if (style.includes('huge')) next.presets = next.presets.filter(k => k !== 'bigger');
+  if (style.includes('bigger')) next.presets = next.presets.filter(k => k !== 'huge');
+  if (style.includes('contrast')) next.presets = next.presets.filter(k => k !== 'dark');
+  if (style.includes('dark')) next.presets = next.presets.filter(k => k !== 'contrast');
+  if (keep) {
+    const blocks = await send(tabId, { type: 'sections' });
+    // one call, and what's left on screen is the whole point: worth the careful model
+    const r = await complete({ ...settings, model: settings.smartModel || settings.model }, [
+      { role: 'system', content: KEEP_PROMPT.replace('{LANG}', settings.langName || 'English') },
+      { role: 'user', content: JSON.stringify({ keep, page: tab.title, blocks }) },
+    ]);
+    const m = r.text.match(/\{[\s\S]*\}/);
+    const d = m ? JSON.parse(m[0]) : { hide: [] };
+    // code has the last word on what the user named: a block with a field they mentioned stays, "sponsored" goes by its flag
+    const named = b => (b.fields || []).some(f => f.toLowerCase().split(/\W+/).some(w => w.length > 3 && keep.toLowerCase().includes(w)));
+    const noAds = /sponsor|\bads?\b|advert/i.test(keep);
+    let hideN = new Set((d.hide || []).filter(n => !named(blocks.find(b => b.n === n) || {})));
+    if (noAds) for (const b of blocks) if (b.sponsored && !named(b)) hideN.add(b.n);
+    const hide = [...hideN].map(n => blocks.find(b => b.n === n)?.sel).filter(Boolean);
+    if (globalThis.process?.env?.NOVA_DEBUG) console.log('[remodel]', JSON.stringify({ blocks, d, via: r.via }));
+    if (hide.length >= blocks.length) return { ok: false, say: "I couldn't tell what to keep on this page." };
+    next.hide = [...new Set([...next.hide, ...hide])];
+    next.keep = keep;
+    say = d.say || `I hid ${hide.length} parts of the page.`;
+  }
+  await send(tabId, { type: 'applyView', view: next });
+  if (!say) say = next.presets.length ? `Done. The page is now ${next.presets.join(', ')}.` : 'Done.';
+  const { views = {} } = await chrome.storage.local.get('views');
+  if (save) {
+    // remember the intent, not this page's blocks: the next Amazon page has different cards
+    views[host] = { presets: next.presets, keep: next.keep };
+    await chrome.storage.local.set({ views });
+    say += ` I'll always show ${host.replace(/^www\./, '')} like this for you.`;
+  } else if ((unsave || style.includes('original')) && views[host]) {
+    delete views[host];
+    await chrome.storage.local.set({ views });
+  }
+  return { ok: true, say, view: next };
+}
+
+// Spoken restyle requests answered without the planner. null = not a view command.
+export function viewCommand(t) {
+  if (t.split(/\s+/).length > 14) return null;
+  // a task that happens to say "bigger" or "dark" ("find a bigger bottle") is not a restyle
+  const task = /\b(find|search|buy|add|order|play|book|send|cart|price|cheapest|watch)\b/.test(t) && !/^(?:please )?(keep only|only keep|only show|show (me )?only|just show|leave only|simplify|clean up|declutter)/.test(t);
+  if (task) return null;
+  const v = { style: [], keep: '', save: false };
+  if (/^((show|go back to|back to|reset to|restore)( me)? (the )?(original|normal)( page| look| view| site)?|(reset|undo)( the)? (page|view|changes|look|design))$/.test(t)) return { ...v, style: ['original'] };
+  if (/\b(remember (this|that)|save (this|that)( look| view| layout| style)?|always show (this|it|this site|this page|[a-z.]+) (like this|this way)|keep it like this)\b/.test(t)) v.save = true;
+  const keep = t.match(/^(?:please )?(?:keep only|only keep|only show|show (?:me )?only|just show(?: me)?|leave only)\s+(.+?)(?:,? and (?:remember|save|always).*)?$/);
+  if (keep) v.keep = keep[1];
+  else if (/^(?:please )?(simplify|clean up|declutter|tidy up|strip down|remove (the )?clutter)\b/.test(t)) v.keep = t.replace(/^(?:please )?(simplify|clean up|declutter|tidy up|strip down|remove (the )?clutter)( this| the)?( page| site)?/, '').replace(/^\s*(to|so|and)\b/, '').trim() || 'the main content only';
+  const S = [['huge', /\b((much|even|really|very|a lot) (bigger|larger)|huge|giant) (text|font|letters)?|\bhuge\b/], ['bigger', /\b(bigger|larger) (text|font|letters|words)\b|\b(make|increase)( the)? (text|font|it|everything|page|letters)( a bit)? (bigger|larger)\b|\bzoom in\b|^(bigger|larger)( please)?$/],
+    ['dark', /\bdark (mode|theme)\b|\bmake it dark\b/], ['contrast', /\b(high|more|better) contrast\b/], ['dyslexia', /\bdyslexi/],
+    ['calm', /\b(hide|remove|no|without)( the| all)? (images|pictures|photos|ads|adverts|animations|videos)\b|\bcalm (mode|down the page)\b/],
+    ['spacious', /\b(more space|spacious|spread (it )?out)\b/], ['focus', /\b(focus (ring|outline)|show (the )?focus)\b/]];
+  for (const [k, re] of S) if (re.test(t) && !(k === 'bigger' && v.style.includes('huge'))) v.style.push(k);
+  return v.style.length || v.keep || v.save ? v : null;
 }
 
 // ---------- offline matcher: "click sign in" without any AI ----------
@@ -356,6 +439,9 @@ export async function run(goal, settings, io) {
       } else if (a.type === 'back') {
         await chrome.tabs.goBack(tab.id);
         result = { ok: true, did: 'went back' };
+      } else if (a.type === 'view') {
+        const r = await remodel(tab.id, settings, a);
+        result = { ok: r.ok, did: r.say, error: r.say };
       } else if (a.type === 'look') {
         // the vision model needs the numbers in the picture: draw them just for the screenshot
         await send(tab.id, { type: 'snapshot', marks: true });

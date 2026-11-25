@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>AccessNull</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap">
+<link rel="stylesheet" href="shell.css">
+</head>
+<body>
+<header id="line">
+  <button id="orb" class="orb" aria-label="Talk to Nova (Alt+Shift+A)" aria-pressed="false"><i></i></button>
+  <div id="caption" role="status" aria-live="polite">
+    <p id="said" class="said"></p>
+    <p id="nova" class="nova">Press Alt Shift A and say what you want done.</p>
+  </div>
+  <div id="ask" class="ask" hidden>
+    <button id="yes" class="yes">Yes, go ahead</button>
+    <button id="no" class="no">No</button>
+  </div>
+  <nav class="tools" aria-label="Browser">
+    <button id="back" class="icon" aria-label="Back" title="Back (Alt+Left)"><svg viewBox="0 0 20 20"><path d="M12.5 4 6.5 10l6 6"/></svg></button>
+    <button id="reload" class="icon" aria-label="Reload" title="Reload (F5)"><svg viewBox="0 0 20 20"><path d="M15.5 10a5.5 5.5 0 1 1-1.6-3.9M15.5 3.5v3.2h-3.2"/></svg></button>
+    <form id="addr" class="addr" role="search">
+      <label for="address" class="vh">Address, or ask Nova</label>
+      <input id="address" autocomplete="off" spellcheck="false" placeholder="Type to Nova, or an address">
+    </form>
+    <button id="look" class="icon look" aria-label="How this page looks" title="How this page looks"><span aria-hidden="true">Aa</span></button>
+    <button id="gear" class="icon" aria-label="Nova settings" title="Nova settings"><svg viewBox="0 0 20 20"><path d="M3.5 6h8M15 6h1.5M3.5 14h2M9 14h7.5"/><circle cx="13" cy="6" r="1.9"/><circle cx="7" cy="14" r="1.9"/></svg></button>
+  </nav>
+  <div class="voice" aria-hidden="true"></div>
+</header>
+<nav id="tabs" class="tabs" aria-label="Tabs" hidden></nav>
+
+<div id="scrim" class="scrim" hidden></div>
+<section id="sheet-look" class="sheet" role="dialog" aria-labelledby="look-h" hidden>
+  <h2 id="look-h">How <span id="look-host">this page</span> looks to you</h2>
+  <p class="lede">Nova changes the page for you only. Say it too: “bigger text”, “dark mode”, “keep only the article”, “always show this site like this”.</p>
+  <div class="presets" role="group" aria-label="Styles">
+    <button data-p="bigger" aria-pressed="false">Bigger text</button>
+    <button data-p="huge" aria-pressed="false">Huge text</button>
+    <button data-p="contrast" aria-pressed="false">High contrast</button>
+    <button data-p="dark" aria-pressed="false">Dark</button>
+    <button data-p="dyslexia" aria-pressed="false">Easier to read</button>
+    <button data-p="calm" aria-pressed="false">No images or motion</button>
+    <button data-p="spacious" aria-pressed="false">More space</button>
+    <button data-p="focus" aria-pressed="false">Strong focus ring</button>
+  </div>
+  <form id="keep" class="keep">
+    <label for="keep-what">Keep only</label>
+    <div class="row"><input id="keep-what" placeholder="the article and the search box"><button>Keep only this</button></div>
+  </form>
+  <p id="hidden-count" class="note"></p>
+  <label class="switch"><input type="checkbox" id="save"> <span>Always show <b id="save-host">this site</b> like this</span></label>
+  <button id="original" class="plain">Show the original page</button>
+</section>
+
+<section id="sheet-settings" class="sheet" role="dialog" aria-labelledby="set-h" hidden>
+  <h2 id="set-h">Nova</h2>
+  <p class="lede">You can change all of this by voice: “speak Tamil”, “just do what I say”, “stop narrating”, “use a smarter model”, “speak faster”.</p>
+  <label class="field"><span>Language</span>
+    <select id="lang">
+      <option value="en-IN">English</option><option value="hi-IN">हिन्दी</option><option value="ta-IN">தமிழ்</option>
+      <option value="kn-IN">ಕನ್ನಡ</option><option value="te-IN">తెలుగు</option>
+    </select></label>
+  <label class="switch"><input type="checkbox" id="confirm"> <span>Ask me before paying, ordering, sending or deleting</span></label>
+  <label class="switch"><input type="checkbox" id="narrate"> <span>Tell me what you're doing as you go</span></label>
+  <div class="field"><span>Thinking</span>
+    <div class="seg" role="radiogroup" aria-label="Thinking">
+      <button role="radio" data-tier="cheap" aria-checked="true">Quick</button><button role="radio" data-tier="smart" aria-checked="false">Careful</button>
+    </div></div>
+  <label class="field"><span>Speaking speed <output id="rate-out">1.0×</output></span><input type="range" id="rate" min="0.7" max="1.6" step="0.1" value="1"></label>
+  <p class="note">Nova never types passwords, card numbers or one-time codes. She hands those to you.</p>
+</section>
+<script src="shell.js"></script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+{
+  "name": "nova-browser",
+  "productName": "AccessNull",
+  "version": "0.1.0",
+  "description": "A browser built around Nova, a voice assistant for people who can't see the screen or use a mouse.",
+  "main": "main.js",
+  "type": "module",
+  "private": true,
+  "scripts": { "start": "electron ." },
+  "dependencies": { "ws": "8.18.0" },
+  "devDependencies": { "electron": "45.4.1" }
+}

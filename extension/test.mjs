@@ -65,3 +65,14 @@ assert.equal(goalLang('ताजमहल किसने बनवाया'), 
 assert.equal(goalLang('play the latest video from Marques Brownlee'), null, 'English stays English');
 assert.equal(goalLang('add a kurta to my cart and check out'), null, 'one Hindi-looking word is not Hinglish');
 console.log('goal language ok');
+
+import { viewCommand } from './agent.js';
+assert.deepEqual(viewCommand('make the text bigger').style, ['bigger']);
+assert.deepEqual(viewCommand('much bigger text and dark mode').style, ['huge', 'dark']);
+assert.equal(viewCommand('keep only the article and the search box').keep, 'the article and the search box');
+assert.equal(viewCommand('simplify this page').keep, 'the main content only');
+assert.equal(viewCommand('always show amazon like this').save, true);
+assert.deepEqual(viewCommand('show the original page').style, ['original']);
+assert.equal(viewCommand('play the latest video from marques brownlee'), null, 'tasks are not view commands');
+assert.equal(viewCommand('find a bigger water bottle on amazon and add it to my cart please'), null, 'a task saying bigger is not a restyle');
+console.log('view commands ok');

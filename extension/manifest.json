@@ -42,8 +42,5 @@
       },
       "description": "Start or stop listening"
     }
-  },
-  "chrome_url_overrides": {
-    "newtab": "home.html"
   }
 }

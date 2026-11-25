@@ -1,6 +1,6 @@
 // AccessNull — the brain (Nova, the assistant). Lives in the service worker so a task survives page loads with no UI open.
 // Pages show a small glass pill (content.js); voice plays from an offscreen document (offscreen.js).
-import { run, activeTab, send, settle, matchLabel, needsConfirm, isEcho, look, goalLang, STOP } from './agent.js';
+import { run, activeTab, send, settle, matchLabel, needsConfirm, isEcho, look, goalLang, remodel, viewCommand, STOP } from './agent.js';
 
 const LANGS = { 'en-IN': 'English', 'hi-IN': 'Hindi', 'ta-IN': 'Tamil', 'kn-IN': 'Kannada', 'te-IN': 'Telugu' };
 // JS \b only knows ASCII letters, so Indian-script words sit outside it
@@ -37,7 +37,7 @@ async function show(state, text = '', extra = {}) {
   trace('ui', ui);
   const tab = taskTab ?? (await activeTab())?.id;
   if (tab != null) chrome.tabs.sendMessage(tab, { type: 'ui', ui }).catch(() => {});
-  chrome.runtime.sendMessage({ type: 'ui', ui }).catch(() => {}); // Nova's home page is an extension page, not a content script
+  chrome.runtime.sendMessage({ type: 'ui', ui }).catch(() => {}); // the Nova browser's strip listens here
 }
 
 // timestamps of everything shown/spoken, read back by the demo recorder
@@ -261,6 +261,13 @@ async function quick(t) {
   }
   // describe what's on screen (photos, charts, pages with no text): the vision model, no planner step
   if (DESCRIBE.test(t)) return describe(), true;
+  // "bigger text", "dark mode", "keep only the article", "always show this site like this": Nova restyles the page
+  const vc = viewCommand(t);
+  if (vc) {
+    show('working', vc.keep ? 'Reshaping the page…' : 'Restyling…');
+    const r = await remodel(tab.id, await getSettings(), vc).catch(() => ({ say: "Sorry, I couldn't change this page." }));
+    return reply(r.say);
+  }
   // "click sign in": matched locally. Unmatched commands fall through to the agent.
   const named = t.match(/^(?:click|press|tap|select|choose)\s+(?:on\s+)?(?:the\s+)?(.+?)(?:\s+button|\s+link)?$/);
   if (named) {
@@ -316,7 +323,7 @@ async function startTask(goal) {
     running = false;
     taskTab = null;
     trace('end', {});
-    if (ui.state === 'working') show('idle');
+    if (ui.state === 'working') show('done', ui.text); // the last thing she said stays readable
   }
 }
 
@@ -354,6 +361,7 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
   else if (msg.type === 'stop') stopAll();
   else if (msg.type === 'close') setListening(false);
   else if (msg.type === 'toggle') toggle();
+  else if (msg.type === 'reapplyView' && sender.tab?.id != null) getSettings().then(st => remodel(sender.tab.id, st, { keep: msg.keep }).catch(() => {}));
   else if (msg.type === 'hello') {
     // a page just loaded: should it show the pill, and in what state?
     chrome.storage.session.get('listening').then(({ listening }) =>
